@@ -1,4 +1,6 @@
 package module.roles;
 
-public class Administrator {
+import module.Employee;
+
+public class Administrator extends Employee {
 }

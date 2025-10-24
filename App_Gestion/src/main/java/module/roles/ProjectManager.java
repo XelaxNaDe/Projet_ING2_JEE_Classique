@@ -1,4 +1,6 @@
 package module.roles;
 
-public class ProjectManager {
+import module.Employee;
+
+public class ProjectManager  extends Employee {
 }

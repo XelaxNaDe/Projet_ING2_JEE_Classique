@@ -1,4 +1,6 @@
 package module.roles;
 
-public class HeadDepartement {
+import module.Employee;
+
+public class HeadDepartement  extends Employee {
 }

@@ -1,6 +1,6 @@
-package module.roles;
+package model.roles;
 
-import module.Employee;
+import model.Employee;
 
 public class Administrator extends Employee {
 }

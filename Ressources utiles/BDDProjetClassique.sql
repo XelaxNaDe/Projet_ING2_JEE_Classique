@@ -25,7 +25,6 @@ CREATE TABLE Departement (
 
 CREATE TABLE Employe (
     id_employe INT AUTO_INCREMENT PRIMARY KEY,
-    matricule VARCHAR(50) UNIQUE NOT NULL,
     nom VARCHAR(100) NOT NULL,
     prenom VARCHAR(100) NOT NULL,
     poste VARCHAR(100),
@@ -48,7 +47,6 @@ ON DELETE SET NULL;
 CREATE TABLE Projet (
     id_projet INT AUTO_INCREMENT PRIMARY KEY,
     nom_projet VARCHAR(150) NOT NULL,
-    description TEXT,
     date_debut DATE,
     date_fin DATE,
     id_chef_projet INT,

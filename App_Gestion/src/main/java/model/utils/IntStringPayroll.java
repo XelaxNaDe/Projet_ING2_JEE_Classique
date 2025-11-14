@@ -1,8 +1,6 @@
 package model.utils;
 
-import javax.persistence.Embeddable;
 
-@Embeddable
 public class IntStringPayroll {
 
     private int amount;

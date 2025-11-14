@@ -1,44 +1,138 @@
 package model;
 
-public class Employee {
-    private int matricule; // Identifiant
-    private String prenom;
-    private String nom;
-    private String sexe;
-    private String email;
-    private String mdp; // Mot de passe
-    private String poste; //
-    private String grade;
-    private int role;
+import jakarta.persistence.*;
+import model.utils.Role;
+import java.util.HashSet;
+import java.util.Set;
 
-    // Construction d'un employé avec son rôle, poste et grade
-    public Employee(String p, String n, String s, String pt, String gd, int r){
-        prenom = p;
-        nom = n;
-        sexe = s;
-        poste = pt;
-        grade = gd;
-        role = r;
+@Entity
+@Table(name = "Employee") // Doit correspondre exactement au nom de la table SQL
+public class Employee {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id") // Nom de la colonne PK dans le SQL
+    private int id;
+
+    @Column(name = "fname", nullable = false)
+    private String fname;
+
+    @Column(name = "sname", nullable = false)
+    private String sname;
+
+    @Column(name = "gender")
+    private String gender;
+
+    @Column(name = "email", unique = true, nullable = false)
+    private String email;
+
+    @Column(name = "password", nullable = false)
+    private String password;
+
+    @Column(name = "position")
+    private String position;
+
+    // Mapping de la relation Many-to-Many via la table Employee_Role
+    // Comme Role est une Enum, on utilise @ElementCollection
+    @ElementCollection(targetClass = Role.class, fetch = FetchType.EAGER)
+    @CollectionTable(
+            name = "Employee_Role", // Nom de la table de liaison SQL
+            joinColumns = @JoinColumn(name = "matricule") // Clé étrangère vers Employee
+    )
+    @Column(name = "id_role") // Nom de la colonne qui stocke le rôle dans la table de liaison
+    @Enumerated(EnumType.ORDINAL) // Stocke l'index (0, 1, 2...) pour matcher le type INT du SQL
+    private Set<Role> role = new HashSet<>();
+
+
+
+    // Constructeur vide OBLIGATOIRE pour Hibernate
+    public Employee() {
     }
 
-    // Modification/Ajout d'informations
-    public void setMatricule(int m){ matricule = m; }
-    public void setPrenom(String p){ prenom = p; }
-    public void setNom(String n){ nom = n; }
-    public void setSexe(String s){sexe = s; }
-    public void setEmail(String e){ email = e; }
-    public void setGrade(String g){ grade = g; }
-    public void setPoste(String pt){ poste = pt; }
-    public void setRole(int r){ role = r; }
+    // Constructeur avec paramètres
+    public Employee(String fname, String sname, String gender, String email, String password, String position) {
+        this.fname = fname;
+        this.sname = sname;
+        this.gender = gender;
+        this.email = email;
+        this.password = password;
+        this.position = position;
+    }
 
-    // Récupération des informations
-    public int getMatricule(){ return matricule; }
-    public String getPrenom(){ return prenom ; }
-    public String getNom(){ return nom; }
-    public String getSexe(){ return sexe; }
-    public String getEmail(){ return email; }
-    public String getGrade(){ return grade; }
-    public String getPoste(){ return poste; }
-    public int getRole(){ return role; }
+    public void addRole(Role r) {
+        this.role.add(r);
+    }
+    public void removeRole(Role r) {
+        this.role.remove(r);
+    }
+    public boolean hasRole(Role r) {
+        return this.role != null && this.role.contains(r);
+    }
+
+
+
+    public int getId() {
+        return id;
+    }
+
+    public void setId(int id) {
+        this.id = id;
+    }
+
+    public String getFname() {
+        return fname;
+    }
+
+    public void setFname(String fname) {
+        this.fname = fname;
+    }
+
+    public String getSname() {
+        return sname;
+    }
+
+    public void setSname(String sname) {
+        this.sname = sname;
+    }
+
+    public String getGender() {
+        return gender;
+    }
+
+    public void setGender(String gender) {
+        this.gender = gender;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
+    public String getPassword() {
+        return password;
+    }
+
+    public void setPassword(String password) {
+        this.password = password;
+    }
+
+    public String getPosition() {
+        return position;
+    }
+
+    public void setPosition(String position) {
+        this.position = position;
+    }
+
+
+    public Set<Role> getRoles() {
+        return role;
+    }
+
+    public void setRoles(Set<Role> roles) {
+        this.role = roles;
+    }
 }
-

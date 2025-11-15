@@ -37,7 +37,7 @@ public class Employee {
     @ElementCollection(targetClass = Role.class, fetch = FetchType.EAGER)
     @CollectionTable(
             name = "Employee_Role", // Nom de la table de liaison SQL
-            joinColumns = @JoinColumn(name = "matricule") // Clé étrangère vers Employee
+            joinColumns = @JoinColumn(name = "id") // CORRIGÉ : Doit correspondre à ta PK
     )
     @Column(name = "id_role") // Nom de la colonne qui stocke le rôle dans la table de liaison
     @Enumerated(EnumType.ORDINAL) // Stocke l'index (0, 1, 2...) pour matcher le type INT du SQL
@@ -135,4 +135,5 @@ public class Employee {
     public void setRoles(Set<Role> roles) {
         this.role = roles;
     }
+
 }

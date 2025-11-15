@@ -24,7 +24,7 @@
             <input type="email" id="email" name="email" required placeholder="ex: admin@cytech.fr">
 
             <label for="password">Mot de passe</label>
-            <input type="password" id="password" name="password" required placeholder="ex: admin@cytech.fr">
+            <input type="password" id="password" name="password" required placeholder="ex: admin123">
         </div>
 
         <button type="submit" class="login-button">Se connecter</button>

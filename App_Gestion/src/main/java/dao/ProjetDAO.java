@@ -71,4 +71,52 @@ public class ProjetDAO {
             ps.executeUpdate();
         }
     }
+
+    public Projet getProjectById(int idProjet) throws SQLException {
+        Projet projet = null;
+        String sql = "SELECT p.*, e.fname, e.sname FROM Projet p " +
+                "LEFT JOIN Employee e ON p.id_chef_projet = e.id " +
+                "WHERE p.id_projet = ?";
+
+        try (Connection conn = DatabaseManager.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setInt(1, idProjet);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    int id = rs.getInt("id_projet");
+                    String nom = rs.getString("nom_projet");
+                    java.util.Date debut = rs.getDate("date_debut");
+                    java.util.Date fin = rs.getDate("date_fin");
+                    int idChef = rs.getInt("id_chef_projet");
+                    String etat = rs.getString("etat");
+
+                    projet = new Projet(id, nom, debut, fin, idChef, etat);
+
+                    // (BONUS) Stocker le nom du chef de projet s'il est trouvé
+                    // Tu devras ajouter ce champ et les getter/setter à ton modèle Projet.java
+                    // projet.setNomChefProjet(rs.getString("fname") + " " + rs.getString("sname"));
+                }
+            }
+        }
+        return projet; // Renvoie null si non trouvé
+    }
+
+    public void updateProject(Projet projet) throws SQLException {
+        String sql = "UPDATE Projet SET nom_projet = ?, date_debut = ?, date_fin = ?, etat = ?, id_chef_projet = ? WHERE id_projet = ?";
+
+        try (Connection conn = DatabaseManager.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setString(1, projet.getNomProjet());
+            ps.setDate(2, new java.sql.Date(projet.getDateDebut().getTime()));
+            ps.setDate(3, new java.sql.Date(projet.getDateFin().getTime()));
+            ps.setString(4, projet.getEtat());
+            ps.setInt(5, projet.getIdChefProjet()); // Le champ ajouté
+            ps.setInt(6, projet.getIdProjet()); // Le WHERE
+
+            ps.executeUpdate();
+        }
+    }
 }

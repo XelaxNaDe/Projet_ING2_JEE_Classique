@@ -5,21 +5,22 @@
 <%@ page contentType="text/html;charset=UTF-8" language="java" %>
 
 <%
-    // 1. Récupération de l'utilisateur (géré par la Servlet, mais vérifié ici)
+    // 1. Récupération de l'utilisateur
     Employee user = (Employee) session.getAttribute("currentUser");
     if (user == null) {
         response.sendRedirect(request.getContextPath() + "/connexion.jsp");
         return;
     }
 
-    // 2. Récupération des données fournies par la Servlet (doGet)
+    // 2. RÉCUPÉRATION DES DEUX LISTES (fournies par la servlet)
     List<Projet> projets = (List<Projet>) request.getAttribute("listeProjets");
+    List<Employee> allEmployees = (List<Employee>) request.getAttribute("allEmployees");
 
-    // 3. Gestion des messages (après une action POST)
+    // 3. Gestion des messages
     String errorMessage = (String) session.getAttribute("errorMessage");
     String successMessage = (String) session.getAttribute("successMessage");
-    session.removeAttribute("errorMessage"); // Nettoyer après lecture
-    session.removeAttribute("successMessage"); // Nettoyer après lecture
+    session.removeAttribute("errorMessage");
+    session.removeAttribute("successMessage");
 %>
 
 <html>
@@ -28,33 +29,13 @@
     <meta charset="UTF-8">
     <link rel="stylesheet" href="${pageContext.request.contextPath}/public/css/style.css">
     <style>
-        /* Styles spécifiques pour le tableau et le formulaire */
-        .project-table, .project-form {
-            background: #fff;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-            margin-bottom: 20px;
-        }
-        .project-table table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        .project-table th, .project-table td {
-            border: 1px solid #ddd;
-            padding: 8px;
-            text-align: left;
-        }
-        .admin-controls a {
-            margin-right: 10px;
-            text-decoration: none;
-            color: #007bff;
-        }
-        .msg-error {
-            color: red; background: #ffe0e0; padding: 10px; border-radius: 5px; margin-bottom: 15px;
-        }
-        .msg-success {
-            color: green; background: #e0ffe0; padding: 10px; border-radius: 5px; margin-bottom: 15px;
+        /* (Styles omis pour la clarté) */
+        .project-table, .project-form { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); margin-bottom: 20px; }
+        .project-table table { width: 100%; border-collapse: collapse; }
+        .project-table th, .project-table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        /* Style pour le <select> */
+        .project-form select {
+            width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;
         }
     </style>
 </head>
@@ -62,27 +43,21 @@
 
 <div class="header">
     <h2>Gestion des Projets</h2>
-    <%-- Lien vers la servlet d'accueil --%>
     <a href="${pageContext.request.contextPath}/accueil" class="nav-button" style="margin-left: 20px;">Retour au Tableau de bord</a>
 </div>
 
 <div class="container">
     <h1>Liste des Projets de l'Entreprise</h1>
 
-    <%-- Affichage des messages d'erreur ou de succès --%>
-    <% if (errorMessage != null) { %>
-    <div class="msg-error"><%= errorMessage %></div>
-    <% } %>
-    <% if (successMessage != null) { %>
-    <div class="msg-success"><%= successMessage %></div>
-    <% } %>
+    <%-- Affichage des messages --%>
+    <% if (errorMessage != null) { %> <div class="msg-error"><%= errorMessage %></div> <% } %>
+    <% if (successMessage != null) { %> <div class="msg-success"><%= successMessage %></div> <% } %>
 
     <%-- Formulaire (Admin seulement) --%>
     <% if (user.hasRole(Role.ADMINISTRATOR)) { %>
     <div class="project-form">
         <h3>Ajouter un Nouveau Projet</h3>
 
-        <%-- Formulaire qui POST vers la servlet /projets --%>
         <form action="${pageContext.request.contextPath}/projets" method="post">
             <input type="hidden" name="action" value="create">
 
@@ -101,8 +76,27 @@
                 <input type="date" id="dateFin" name="dateFin" required style="padding: 8px;">
             </div>
 
-            <%-- TODO: Ajouter un <select> pour choisir le chef de projet --%>
-            <%-- Pour l'instant, la servlet utilise l'admin connecté comme chef --%>
+            <%-- ************************************************* --%>
+            <%-- ***** BLOC REMPLAÇANT LE PLACEHOLDER ***** --%>
+            <%-- ************************************************* --%>
+            <div style="margin-bottom: 10px;">
+                <label for="idChefProjet">Chef de Projet:</label>
+                <select id="idChefProjet" name="idChefProjet" required>
+                    <option value="">-- Choisir un employé --</option>
+                    <% if (allEmployees != null) {
+                        for (Employee emp : allEmployees) {
+                    %>
+                    <option value="<%= emp.getId() %>">
+                        <%= emp.getFname() %> <%= emp.getSname() %> (ID: <%= emp.getId() %>)
+                    </option>
+                    <%
+                            } // Fin for
+                        } // Fin if
+                    %>
+                </select>
+            </div>
+            <%-- ************************************************* --%>
+            <%-- ************************************************* --%>
 
             <button type="submit" class="nav-button admin-btn">Créer le Projet</button>
         </form>
@@ -120,15 +114,11 @@
                 <th>Début</th>
                 <th>Fin</th>
                 <th>Statut</th>
-                <th>Chef (ID)</th> <%-- Amélioré si tu utilises la jointure --%>
-                <% if (user.hasRole(Role.ADMINISTRATOR)) { %>
+                <th>Chef (ID)</th>
                 <th>Actions</th>
-                <% } %>
             </tr>
             </thead>
             <tbody>
-
-            <%-- Boucle dynamique sur la liste des projets --%>
             <% if (projets != null && !projets.isEmpty()) {
                 for (Projet p : projets) {
             %>
@@ -138,33 +128,19 @@
                 <td><%= new java.text.SimpleDateFormat("dd/MM/yyyy").format(p.getDateDebut()) %></td>
                 <td><%= new java.text.SimpleDateFormat("dd/MM/yyyy").format(p.getDateFin()) %></td>
                 <td><%= p.getEtat() %></td>
-                <td><%= p.getIdChefProjet() %></td> <%-- Remplace par p.getNomChefProjet() si tu as fait la jointure --%>
-
-                <% if (user.hasRole(Role.ADMINISTRATOR)) { %>
+                <td><%= p.getIdChefProjet() %></td>
                 <td class="admin-controls">
-                    <a href="#">Modifier</a> |
-                    <form action="${pageContext.request.contextPath}/projets" method="post" style="display:inline;">
-                        <input type="hidden" name="action" value="delete">
-                        <input type="hidden" name="projectId" value="<%= p.getIdProjet() %>">
-
-                        <button type="submit"
-                                class="admin-controls"
-                                style="color: red; border: none; background: none; cursor: pointer; padding: 0;"
-                                onclick="return confirm('Es-tu sûr de vouloir supprimer ce projet ?');">
-                            Supprimer
-                        </button>
-                    </form>                </td>
-                <% } %>
+                    <a href="${pageContext.request.contextPath}/detail-projet?id=<%= p.getIdProjet() %>" class="detail-button">Détail</a>
+                </td>
             </tr>
             <%
-                } // Fin de la boucle for
+                } // Fin for
             } else {
             %>
             <tr>
                 <td colspan="7" style="text-align: center;">Aucun projet trouvé.</td>
             </tr>
-            <% } // Fin du else %>
-
+            <% } // Fin else %>
             </tbody>
         </table>
     </div>

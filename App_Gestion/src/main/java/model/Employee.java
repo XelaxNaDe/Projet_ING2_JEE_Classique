@@ -32,8 +32,14 @@ public class Employee {
     @Column(name = "position")
     private String position;
 
-    // Mapping de la relation Many-to-Many via la table Employee_Role
-    // Comme Role est une Enum, on utilise @ElementCollection
+    // --- AJOUTS ---
+    @Column(name = "grade")
+    private String grade;
+
+    @Column(name = "id_departement")
+    private int idDepartement;
+    // --------------
+
     @ElementCollection(targetClass = Role.class, fetch = FetchType.EAGER)
     @CollectionTable(
             name = "Employee_Role", // Nom de la table de liaison SQL
@@ -43,22 +49,23 @@ public class Employee {
     @Enumerated(EnumType.ORDINAL) // Stocke l'index (0, 1, 2...) pour matcher le type INT du SQL
     private Set<Role> role = new HashSet<>();
 
-
-
     // Constructeur vide OBLIGATOIRE pour Hibernate
     public Employee() {
     }
 
-    // Constructeur avec paramètres
-    public Employee(String fname, String sname, String gender, String email, String password, String position) {
+    // Constructeur avec paramètres (Mis à jour)
+    public Employee(String fname, String sname, String gender, String email, String password, String position, String grade, int idDepartement) {
         this.fname = fname;
         this.sname = sname;
         this.gender = gender;
         this.email = email;
         this.password = password;
         this.position = position;
+        this.grade = grade; // Ajouté
+        this.idDepartement = idDepartement; // Ajouté
     }
 
+    // --- Méthodes de Rôle ---
     public void addRole(Role r) {
         this.role.add(r);
     }
@@ -68,8 +75,14 @@ public class Employee {
     public boolean hasRole(Role r) {
         return this.role != null && this.role.contains(r);
     }
+    public Set<Role> getRoles() {
+        return role;
+    }
+    public void setRoles(Set<Role> roles) {
+        this.role = roles;
+    }
 
-
+    // --- Getters et Setters ---
 
     public int getId() {
         return id;
@@ -127,13 +140,21 @@ public class Employee {
         this.position = position;
     }
 
+    // --- Getters et Setters Ajoutés ---
 
-    public Set<Role> getRoles() {
-        return role;
+    public String getGrade() {
+        return grade;
     }
 
-    public void setRoles(Set<Role> roles) {
-        this.role = roles;
+    public void setGrade(String grade) {
+        this.grade = grade;
     }
 
+    public int getIdDepartement() {
+        return idDepartement;
+    }
+
+    public void setIdDepartement(int idDepartement) {
+        this.idDepartement = idDepartement;
+    }
 }

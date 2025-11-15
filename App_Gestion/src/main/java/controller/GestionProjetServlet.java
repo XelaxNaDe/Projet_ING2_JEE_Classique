@@ -2,6 +2,7 @@ package controller;
 
 // Imports NÉCESSAIRES pour le DAO et le modèle
 import dao.ProjetDAO;
+import dao.EmployeeDAO; // 1. IMPORTER LE DAO DES EMPLOYÉS
 import model.Projet;
 import java.util.List;
 import java.sql.SQLException;
@@ -24,13 +25,14 @@ import java.io.IOException;
 @WebServlet(name = "GestionProjetServlet", urlPatterns = "/projets")
 public class GestionProjetServlet extends HttpServlet {
 
-    // NOUVEAU : Instance du DAO pour que la servlet puisse l'utiliser
     private ProjetDAO projetDAO;
+    private EmployeeDAO employeeDAO; // 2. AJOUTER L'INSTANCE DU DAO
 
     @Override
     public void init() {
-        // On initialise le DAO une seule fois au démarrage de la servlet
+        // On initialise les DAO une seule fois au démarrage de la servlet
         this.projetDAO = new ProjetDAO();
+        this.employeeDAO = new EmployeeDAO(); // 3. INITIALISER LE DAO
     }
 
     /**
@@ -46,20 +48,17 @@ public class GestionProjetServlet extends HttpServlet {
             return;
         }
 
-        // 2. Vérification des permissions (Optionnel)
-        // ...
-
-        // MODIFIÉ : Section 3 (Récupération des données)
         try {
-            // 3. Récupérer la liste des projets via le DAO
+            // 4. RÉCUPÉRER LES DEUX LISTES
             List<Projet> listeProjets = projetDAO.getAllProjects();
+            List<Employee> allEmployees = employeeDAO.getAllEmployees(); // Pour le <select>
 
-            // Mettre la liste dans la requête pour que le JSP la lise
+            // 5. METTRE LES DEUX LISTES DANS LA REQUÊTE
             req.setAttribute("listeProjets", listeProjets);
+            req.setAttribute("allEmployees", allEmployees); // Transmettre au JSP
 
         } catch (SQLException e) {
-            e.printStackTrace(); // Crucial pour voir l'erreur BDD dans les logs Tomcat
-            // Envoyer un message d'erreur au JSP
+            e.printStackTrace();
             req.setAttribute("errorMessage", "Erreur BDD lors de la récupération des projets: " + e.getMessage());
         }
 
@@ -84,8 +83,6 @@ public class GestionProjetServlet extends HttpServlet {
 
         try {
             if ("create".equals(action)) {
-                // ... (ton code pour "create" reste ici) ...
-
                 // 1. Récupérer les données
                 String projectName = req.getParameter("projectName");
                 String dateDebutStr = req.getParameter("dateDebut");
@@ -102,18 +99,16 @@ public class GestionProjetServlet extends HttpServlet {
                 SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd");
                 Date dateDebut = formatter.parse(dateDebutStr);
                 Date dateFin = formatter.parse(dateFinStr);
-                int idChefProjet = 1; // Ton placeholder
+
+                // 6. MODIFICATION : On lit le chef de projet depuis le formulaire
+                int idChefProjet = Integer.parseInt(req.getParameter("idChefProjet"));
 
                 Projet nouveauProjet = new Projet(projectName, dateDebut, dateFin, idChefProjet, "En cours");
                 projetDAO.createProject(nouveauProjet);
 
                 session.setAttribute("successMessage", "Projet '" + projectName + "' créé avec succès!");
 
-                // **********************************
-                // ***** NOUVEAU BLOC À AJOUTER *****
-                // **********************************
             } else if ("delete".equals(action)) {
-
                 // 1. Récupérer l'ID du projet à supprimer
                 int idProjet = Integer.parseInt(req.getParameter("projectId"));
 
@@ -123,12 +118,7 @@ public class GestionProjetServlet extends HttpServlet {
                 // 3. Mettre un message de succès
                 session.setAttribute("successMessage", "Projet (ID: " + idProjet + ") supprimé avec succès!");
 
-            }
-            // **********************************
-            // ***** FIN DU NOUVEAU BLOC *****
-            // **********************************
-
-            else {
+            } else {
                 // Gérer les actions inconnues
                 session.setAttribute("errorMessage", "Action non reconnue.");
             }
@@ -139,13 +129,12 @@ public class GestionProjetServlet extends HttpServlet {
         } catch (ParseException e) { // Pour le "create"
             e.printStackTrace();
             session.setAttribute("errorMessage", "Format de date invalide.");
-        } catch (NumberFormatException e) { // Pour le "delete"
+        } catch (NumberFormatException e) { // Pour le "create" (idChefProjet) ou "delete" (projectId)
             e.printStackTrace();
-            session.setAttribute("errorMessage", "ID du projet invalide.");
+            session.setAttribute("errorMessage", "ID invalide.");
         }
 
         // Redirection PRG (Post/Redirect/Get) à la fin
-        // Cela recharge la page (via le doGet) et affiche la liste à jour
         resp.sendRedirect(req.getContextPath() + "/projets");
     }
 }

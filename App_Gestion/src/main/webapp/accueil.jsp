@@ -28,21 +28,14 @@
     <div class="button-nav">
 
         <h3 style="width: 100%; border-bottom: 1px solid #ccc;">Mon espace</h3>
-        <a href="#" class="nav-button">Mon Profil</a>
-        <a href="#" class="nav-button">Mon Département</a>
-        <a href="#" class="nav-button">Mes Projets</a>
+        <a href="${pageContext.request.contextPath}/profil" class="nav-button">Mon Profil</a>
+        <a href="${pageContext.request.contextPath}/departements" class="nav-button admin-btn">Départements</a>
+        <a href="${pageContext.request.contextPath}/projets" class="nav-button admin-btn">Projets</a>
         <a href="#" class="nav-button">Mes fiches de paye</a>
-
         <% if (user.hasRole(Role.ADMINISTRATOR)) { %>
         <h3 style="width: 100%; border-bottom: 1px solid #ccc;">Administration</h3>
         <a href="#" class="nav-button admin-btn">Gérer les Employés</a>
         <a href="#" class="nav-button admin-btn">Gérer les Départements</a>
-
-        <form action="${pageContext.request.contextPath}/projets" method="get" style="display: inline;">
-            <button type="submit" class="nav-button admin-btn">
-                Gérer les Projets
-            </button>
-        </form>
 
         <% } %> <%-- CORRECTION : La balise de fermeture est <% } %> --%>
 

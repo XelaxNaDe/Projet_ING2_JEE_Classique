@@ -40,7 +40,7 @@ public class LoginServlet extends HttpServlet {
             e.printStackTrace();
             // Si la BDD plante, on gère ça comme un échec
             req.setAttribute("errorMessage", "Erreur de base de données. Veuillez contacter un admin.");
-            req.getRequestDispatcher("connexion.jsp").forward(req, resp);
+            req.getRequestDispatcher("Connexion.jsp").forward(req, resp);
             return;
         }
 
@@ -54,7 +54,7 @@ public class LoginServlet extends HttpServlet {
         } else {
             // 4. ÉCHEC : (user == null) -> Email ou MDP incorrect
             req.setAttribute("errorMessage", "Email ou mot de passe incorrect");
-            req.getRequestDispatcher("connexion.jsp").forward(req, resp);
+            req.getRequestDispatcher("Connexion.jsp").forward(req, resp);
         }
     }
 

@@ -8,7 +8,7 @@
     // 1. Récupération de l'utilisateur
     Employee user = (Employee) session.getAttribute("currentUser");
     if (user == null) {
-        response.sendRedirect(request.getContextPath() + "/connexion.jsp");
+        response.sendRedirect(request.getContextPath() + "/Connexion.jsp");
         return;
     }
 

@@ -21,11 +21,11 @@ public class AccueilServlet extends HttpServlet {
         // 1. Vérifier si l'utilisateur est connecté
         if (user == null) {
             // Si non, rediriger vers la page de connexion
-            resp.sendRedirect(req.getContextPath() + "connexion.jsp");
+            resp.sendRedirect(req.getContextPath() + "Connexion.jsp");
         } else {
             // 2. Si oui, afficher la page d'accueil
             // On transfère la requête à la page JSP pour qu'elle s'affiche
-            req.getRequestDispatcher("accueil.jsp").forward(req, resp);
+            req.getRequestDispatcher("Accueil.jsp").forward(req, resp);
         }
     }
 }

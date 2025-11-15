@@ -32,7 +32,7 @@ public class ProfilServlet extends HttpServlet {
         Employee user = (session != null) ? (Employee) session.getAttribute("currentUser") : null;
 
         if (user == null) {
-            resp.sendRedirect(req.getContextPath() + "/connexion.jsp");
+            resp.sendRedirect(req.getContextPath() + "/Connexion.jsp");
             return;
         }
 
@@ -58,7 +58,7 @@ public class ProfilServlet extends HttpServlet {
         Employee user = (session != null) ? (Employee) session.getAttribute("currentUser") : null;
 
         if (user == null) {
-            resp.sendRedirect(req.getContextPath() + "/connexion.jsp");
+            resp.sendRedirect(req.getContextPath() + "/Connexion.jsp");
             return;
         }
 

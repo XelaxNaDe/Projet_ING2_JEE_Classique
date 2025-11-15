@@ -35,7 +35,7 @@ public class DetailDepartementServlet extends HttpServlet {
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         HttpSession session = req.getSession(false);
         if (session == null || session.getAttribute("currentUser") == null) {
-            resp.sendRedirect(req.getContextPath() + "/connexion.jsp");
+            resp.sendRedirect(req.getContextPath() + "/Connexion.jsp");
             return;
         }
 

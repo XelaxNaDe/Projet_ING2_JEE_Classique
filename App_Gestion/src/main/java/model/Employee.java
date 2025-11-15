@@ -32,13 +32,17 @@ public class Employee {
     @Column(name = "position")
     private String position;
 
-    // --- AJOUTS ---
     @Column(name = "grade")
     private String grade;
 
     @Column(name = "id_departement")
     private int idDepartement;
-    // --------------
+
+    // --- CHAMP AJOUTÉ ---
+    // Pas d'annotation @Column, c'est un champ "virtuel"
+    // que le DAO remplit pour nous.
+    private String nomDepartement;
+    // --------------------
 
     @ElementCollection(targetClass = Role.class, fetch = FetchType.EAGER)
     @CollectionTable(
@@ -61,8 +65,8 @@ public class Employee {
         this.email = email;
         this.password = password;
         this.position = position;
-        this.grade = grade; // Ajouté
-        this.idDepartement = idDepartement; // Ajouté
+        this.grade = grade;
+        this.idDepartement = idDepartement;
     }
 
     // --- Méthodes de Rôle ---
@@ -140,8 +144,6 @@ public class Employee {
         this.position = position;
     }
 
-    // --- Getters et Setters Ajoutés ---
-
     public String getGrade() {
         return grade;
     }
@@ -156,5 +158,14 @@ public class Employee {
 
     public void setIdDepartement(int idDepartement) {
         this.idDepartement = idDepartement;
+    }
+
+    // --- GETTER/SETTER AJOUTÉS ---
+    public String getNomDepartement() {
+        return nomDepartement;
+    }
+
+    public void setNomDepartement(String nomDepartement) {
+        this.nomDepartement = nomDepartement;
     }
 }

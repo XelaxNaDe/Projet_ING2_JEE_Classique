@@ -95,7 +95,10 @@ CREATE TABLE IntStringPayroll (
     id_payroll INT NOT NULL,
     amount INT NOT NULL,
     label VARCHAR(255),
-    type_list VARCHAR(20) NOT NULL,
+    type_list ENUM(
+            'Prime',
+            'Déduction')
+        DEFAULT 'Prime',
     FOREIGN KEY (id_payroll)
         REFERENCES Payroll(id_payroll)
         ON DELETE CASCADE 

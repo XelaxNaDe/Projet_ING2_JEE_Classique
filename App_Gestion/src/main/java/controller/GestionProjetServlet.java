@@ -83,53 +83,66 @@ public class GestionProjetServlet extends HttpServlet {
 
         try {
             if ("create".equals(action)) {
-                // 1. Récupérer les données
                 String projectName = req.getParameter("projectName");
                 String dateDebutStr = req.getParameter("dateDebut");
                 String dateFinStr = req.getParameter("dateFin");
+                int idChefProjet = Integer.parseInt(req.getParameter("idChefProjet"));
 
                 // ... (validation) ...
-                if (projectName == null || projectName.trim().isEmpty() || dateDebutStr == null || dateFinStr.isEmpty() || dateFinStr == null || dateFinStr.isEmpty()) {
+                if (projectName == null || projectName.trim().isEmpty() || dateDebutStr == null || dateFinStr.isEmpty()) {
                     session.setAttribute("errorMessage", "Tous les champs sont obligatoires.");
                     resp.sendRedirect(req.getContextPath() + "/projets");
                     return;
                 }
 
-                // 2. Logique Métier
                 SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd");
                 Date dateDebut = formatter.parse(dateDebutStr);
                 Date dateFin = formatter.parse(dateFinStr);
 
-                // 6. MODIFICATION : On lit le chef de projet depuis le formulaire
-                int idChefProjet = Integer.parseInt(req.getParameter("idChefProjet"));
-
                 Projet nouveauProjet = new Projet(projectName, dateDebut, dateFin, idChefProjet, "En cours");
                 projetDAO.createProject(nouveauProjet);
+
+                // Assigner le rôle au nouveau chef
+                if (idChefProjet > 0) {
+                    employeeDAO.assignProjectManagerRole(idChefProjet);
+                }
 
                 session.setAttribute("successMessage", "Projet '" + projectName + "' créé avec succès!");
 
             } else if ("delete".equals(action)) {
+
                 // 1. Récupérer l'ID du projet à supprimer
                 int idProjet = Integer.parseInt(req.getParameter("projectId"));
 
-                // 2. Appeler le DAO pour supprimer
+                // 2. (NOUVEAU) Avant de supprimer, trouver qui est le chef
+                int oldChefId = 0;
+                Projet projetASupprimer = projetDAO.getProjectById(idProjet);
+                if (projetASupprimer != null) {
+                    oldChefId = projetASupprimer.getIdChefProjet();
+                }
+
+                // 3. Appeler le DAO pour supprimer
                 projetDAO.deleteProject(idProjet);
 
-                // 3. Mettre un message de succès
+                // 4. (NOUVEAU) Vérifier le statut de l'ancien chef
+                if (oldChefId > 0) {
+                    employeeDAO.checkAndRemoveProjectManagerRole(oldChefId);
+                }
+
+                // 5. Mettre un message de succès
                 session.setAttribute("successMessage", "Projet (ID: " + idProjet + ") supprimé avec succès!");
 
             } else {
-                // Gérer les actions inconnues
                 session.setAttribute("errorMessage", "Action non reconnue.");
             }
 
         } catch (SQLException e) {
             e.printStackTrace();
             session.setAttribute("errorMessage", "Erreur SQL : " + e.getMessage());
-        } catch (ParseException e) { // Pour le "create"
+        } catch (ParseException e) {
             e.printStackTrace();
             session.setAttribute("errorMessage", "Format de date invalide.");
-        } catch (NumberFormatException e) { // Pour le "create" (idChefProjet) ou "delete" (projectId)
+        } catch (NumberFormatException e) {
             e.printStackTrace();
             session.setAttribute("errorMessage", "ID invalide.");
         }

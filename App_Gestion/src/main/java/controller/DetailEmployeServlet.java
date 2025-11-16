@@ -76,14 +76,16 @@ public class DetailEmployeServlet extends HttpServlet {
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         HttpSession session = req.getSession(false);
-        if (session == null || session.getAttribute("currentUser") == null ||
-                !((Employee) session.getAttribute("currentUser")).hasRole(Role.ADMINISTRATOR)) {
+        // On récupère l'utilisateur connecté AVANT
+        Employee loggedInUser = (session != null) ? (Employee) session.getAttribute("currentUser") : null;
+
+        if (loggedInUser == null || !loggedInUser.hasRole(Role.ADMINISTRATOR)) {
             resp.sendError(HttpServletResponse.SC_FORBIDDEN);
             return;
         }
 
         String action = req.getParameter("action");
-        int employeeId = 0; // Pour stocker l'ID
+        int employeeId = 0; // Pour stocker l'ID de l'employé créé ou mis à jour
 
         try {
             // 1. Récupérer les champs (SANS "grade")
@@ -91,7 +93,6 @@ public class DetailEmployeServlet extends HttpServlet {
             String sname = req.getParameter("sname");
             String gender = req.getParameter("gender");
             String position = req.getParameter("position");
-            // String grade = req.getParameter("grade"); // SUPPRIMÉ
             int idDepartement = Integer.parseInt(req.getParameter("idDepartement"));
 
             Employee emp;
@@ -102,12 +103,10 @@ public class DetailEmployeServlet extends HttpServlet {
 
                 if (password == null || password.isEmpty() || email == null || email.isEmpty()) {
                     session.setAttribute("errorMessage", "L'email et le mot de passe sont requis pour la création.");
-                    // On doit recharger les données pour le formulaire
-                    doGet(req, resp);
+                    doGet(req, resp); // Recharge le formulaire avec les listes
                     return;
                 }
 
-                // On passe null pour 'grade'
                 emp = new Employee(fname, sname, gender, email, password, position, null, idDepartement);
                 employeeDAO.createEmployee(emp);
 
@@ -122,35 +121,23 @@ public class DetailEmployeServlet extends HttpServlet {
                 employeeId = id; // On a l'ID
 
                 Employee existingEmp = employeeDAO.findEmployeeById(id);
-                if (existingEmp == null) {
-                    session.setAttribute("errorMessage", "Employé non trouvé.");
-                    resp.sendRedirect(req.getContextPath() + "/employes");
-                    return;
-                }
+                if (existingEmp == null) { /* ... gestion erreur ... */ }
 
-                emp = new Employee(
-                        fname,
-                        sname,
-                        gender,
-                        existingEmp.getEmail(),     // On garde l'ancien email
-                        existingEmp.getPassword(),  // On garde l'ancien mdp
-                        position,
-                        existingEmp.getGrade(),     // On garde l'ancien grade
-                        idDepartement
-                );
+                emp = new Employee(fname, sname, gender, existingEmp.getEmail(), existingEmp.getPassword(),
+                        position, existingEmp.getGrade(), idDepartement);
                 emp.setId(id);
 
                 employeeDAO.updateEmployee(emp);
                 session.setAttribute("successMessage", "Employé mis à jour avec succès.");
             }
 
-            // --- 6. GESTION DES RÔLES (POUR CREATE ET UPDATE) ---
+            // --- GESTION DES RÔLES (POUR CREATE ET UPDATE) ---
             if (employeeId > 0) {
                 // D'abord, on supprime tous les anciens rôles
                 employeeDAO.clearEmployeeRoles(employeeId);
 
                 // Ensuite, on ajoute les nouveaux
-                String[] selectedRoleIds = req.getParameterValues("roles"); // "roles" est le name des checkboxes
+                String[] selectedRoleIds = req.getParameterValues("roles");
 
                 if (selectedRoleIds != null) {
                     for (String roleIdStr : selectedRoleIds) {
@@ -158,9 +145,17 @@ public class DetailEmployeServlet extends HttpServlet {
                         employeeDAO.addEmployeeRole(employeeId, roleId);
                     }
                 }
-            }
-            // --- Fin Gestion des Rôles ---
 
+                // ***** BLOC DE CORRECTION AJOUTÉ *****
+                // Si l'admin vient de modifier SON PROPRE profil...
+                if (loggedInUser.getId() == employeeId) {
+                    // ...on doit recharger son objet depuis la BDD
+                    // pour mettre à jour ses droits en session.
+                    Employee updatedSelf = employeeDAO.findEmployeeById(employeeId);
+                    session.setAttribute("currentUser", updatedSelf);
+                }
+                // ***** FIN DU BLOC *****
+            }
 
         } catch (SQLException | NumberFormatException e) {
             e.printStackTrace();

@@ -83,9 +83,9 @@ public class GestionEmployeServlet extends HttpServlet {
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         HttpSession session = req.getSession(false);
-        Employee user = (session != null) ? (Employee) session.getAttribute("currentUser") : null;
+        Employee loggedInUser = (session != null) ? (Employee) session.getAttribute("currentUser") : null;
 
-        if (user == null || !user.hasRole(Role.ADMINISTRATOR)) {
+        if (loggedInUser == null || !loggedInUser.hasRole(Role.ADMINISTRATOR)) {
             resp.sendError(HttpServletResponse.SC_FORBIDDEN);
             return;
         }
@@ -94,16 +94,32 @@ public class GestionEmployeServlet extends HttpServlet {
 
         if ("delete".equals(action)) {
             try {
-                int id = Integer.parseInt(req.getParameter("id"));
-                employeeDAO.deleteEmployee(id);
+                int idToDelete = Integer.parseInt(req.getParameter("id"));
+
+                // 1. Appeler le DAO pour supprimer
+                employeeDAO.deleteEmployee(idToDelete);
                 session.setAttribute("successMessage", "Employé supprimé avec succès.");
+
+                // ***** BLOC DE CORRECTION AJOUTÉ *****
+                // Si l'admin s'est auto-supprimé...
+                if (loggedInUser.getId() == idToDelete) {
+                    session.invalidate(); // On détruit sa session
+                    resp.sendRedirect(req.getContextPath() + "/Connexion.jsp"); // On le renvoie au login
+                    return; // TRÈS IMPORTANT: on arrête l'exécution ici
+                }
+                // ***** FIN DU BLOC *****
+
             } catch (SQLException e) {
+                e.printStackTrace();
                 session.setAttribute("errorMessage", "Erreur SQL : " + e.getMessage());
             } catch (NumberFormatException e) {
+                e.printStackTrace();
                 session.setAttribute("errorMessage", "ID invalide.");
             }
         }
-        
+
+        // Si on n'a pas "return" (c-à-d si l'admin a supprimé qqn d'autre),
+        // on redirige normalement vers la liste.
         resp.sendRedirect(req.getContextPath() + "/employes");
     }
 }

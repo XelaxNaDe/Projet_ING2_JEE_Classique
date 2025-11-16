@@ -4,6 +4,9 @@ import model.Projet;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
+import model.Employee;
 
 public class ProjetDAO {
 
@@ -118,5 +121,108 @@ public class ProjetDAO {
 
             ps.executeUpdate();
         }
+    }
+// ... (tes méthodes existantes : getAllProjects, createProject, etc. sont ici) ...
+
+    /**
+     * Récupère la liste des employés affectés à un projet et leur rôle.
+     * Renvoie une Map<Employee, String> (Employé -> Rôle dans le projet)
+     */
+    public Map<Employee, String> getAssignedEmployees(int idProjet) throws SQLException {
+        Map<Employee, String> team = new HashMap<>();
+        // Jointure pour récupérer les infos de l'employé ET son rôle
+        String sql = "SELECT e.*, ep.role_dans_projet FROM Employee e " +
+                "JOIN Employe_Projet ep ON e.id = ep.id " +
+                "WHERE ep.id_projet = ?";
+
+        try (Connection conn = DatabaseManager.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setInt(1, idProjet);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    // Crée l'objet Employee
+                    Employee emp = new Employee(
+                            rs.getString("fname"),
+                            rs.getString("sname"),
+                            rs.getString("gender"),
+                            rs.getString("email"),
+                            rs.getString("password"),
+                            rs.getString("position"),
+                            rs.getString("grade"),
+                            rs.getInt("id_departement")
+                    );
+                    emp.setId(rs.getInt("id"));
+
+                    String roleInProject = rs.getString("role_dans_projet");
+                    team.put(emp, roleInProject);
+                }
+            }
+        }
+        return team;
+    }
+
+    /**
+     * Ajoute un employé à un projet (ou met à jour son rôle s'il y est déjà).
+     */
+    public void assignEmployeeToProject(int idProjet, int idEmploye, String role) throws SQLException {
+        // ON DUPLICATE KEY UPDATE gère la création et la mise à jour en une fois
+        String sql = "INSERT INTO Employe_Projet (id, id_projet, role_dans_projet) VALUES (?, ?, ?) " +
+                "ON DUPLICATE KEY UPDATE role_dans_projet = ?";
+
+        try (Connection conn = DatabaseManager.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setInt(1, idEmploye);
+            ps.setInt(2, idProjet);
+            ps.setString(3, role);
+            ps.setString(4, role); // Pour la partie UPDATE
+
+            ps.executeUpdate();
+        }
+    }
+
+    /**
+     * Retire un employé d'un projet.
+     */
+    public void removeEmployeeFromProject(int idProjet, int idEmploye) throws SQLException {
+        String sql = "DELETE FROM Employe_Projet WHERE id = ? AND id_projet = ?";
+        try (Connection conn = DatabaseManager.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setInt(1, idEmploye);
+            ps.setInt(2, idProjet);
+
+            ps.executeUpdate();
+        }
+    }
+    public List<Projet> getProjectsByEmployeeId(int idEmploye) throws SQLException {
+        List<Projet> projets = new ArrayList<>();
+        // On joint Projet et Employe_Projet
+        String sql = "SELECT p.* FROM Projet p " +
+                "JOIN Employe_Projet ep ON p.id_projet = ep.id_projet " +
+                "WHERE ep.id = ?";
+
+        try (Connection conn = DatabaseManager.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setInt(1, idEmploye);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Projet projet = new Projet(
+                            rs.getInt("id_projet"),
+                            rs.getString("nom_projet"),
+                            rs.getDate("date_debut"),
+                            rs.getDate("date_fin"),
+                            rs.getInt("id_chef_projet"),
+                            rs.getString("etat")
+                    );
+                    projets.add(projet);
+                }
+            }
+        }
+        return projets;
     }
 }

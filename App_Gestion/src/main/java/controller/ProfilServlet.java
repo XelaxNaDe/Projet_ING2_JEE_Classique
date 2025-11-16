@@ -2,6 +2,9 @@ package controller;
 
 import dao.DepartementDAO;
 import dao.EmployeeDAO;
+import dao.ProjetDAO; // 1. AJOUTÉ
+import model.Projet; // 1. AJOUTÉ
+import java.util.List; // 1. AJOUTÉ
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
@@ -19,11 +22,13 @@ public class ProfilServlet extends HttpServlet {
 
     private DepartementDAO departementDAO;
     private EmployeeDAO employeeDAO;
+    private ProjetDAO projetDAO; // 2. AJOUTÉ
 
     @Override
     public void init() {
         this.departementDAO = new DepartementDAO();
         this.employeeDAO = new EmployeeDAO();
+        this.projetDAO = new ProjetDAO(); // 3. AJOUTÉ
     }
 
     @Override
@@ -37,21 +42,23 @@ public class ProfilServlet extends HttpServlet {
         }
 
         try {
-            // 1. L'utilisateur est déjà dans la session (il est complet grâce au login)
-            // 2. On doit juste récupérer le nom de son département
+            // 1. Récupérer le nom de son département
             Departement dept = departementDAO.findById(user.getIdDepartement());
-            
-            // 3. On passe le département au JSP
-            req.setAttribute("departement", dept); 
-            
+            req.setAttribute("departement", dept);
+
+            // 4. (MODIFIÉ) Récupérer les projets de l'utilisateur
+            List<Projet> projets = projetDAO.getProjectsByEmployeeId(user.getId());
+            req.setAttribute("projets", projets);
+
         } catch (SQLException e) {
             e.printStackTrace();
-            req.setAttribute("errorMessage", "Impossible de charger le département.");
+            req.setAttribute("errorMessage", "Impossible de charger les détails du profil.");
         }
 
         // L'utilisateur (currentUser) est déjà dispo pour le JSP via la session
         req.getRequestDispatcher("/Profil.jsp").forward(req, resp);
     }
+
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         HttpSession session = req.getSession(false);
@@ -62,7 +69,6 @@ public class ProfilServlet extends HttpServlet {
             return;
         }
 
-        // On utilise un champ "action" pour savoir quel formulaire a été soumis
         String action = req.getParameter("action");
 
         try {
@@ -72,7 +78,12 @@ public class ProfilServlet extends HttpServlet {
                 String newEmail2 = req.getParameter("newEmail2");
                 String password = req.getParameter("currentPassword");
 
-                if (!newEmail1.equals(newEmail2)) {
+                // Validation (puisque 'required' est enlevé)
+                if (newEmail1 == null || newEmail1.trim().isEmpty() ||
+                        newEmail2 == null || newEmail2.trim().isEmpty() ||
+                        password == null || password.isEmpty()) {
+                    session.setAttribute("errorMessage", "Tous les champs sont requis.");
+                } else if (!newEmail1.equals(newEmail2)) {
                     session.setAttribute("errorMessage", "Les nouveaux emails ne correspondent pas.");
                 } else if (!employeeDAO.checkPassword(user.getId(), password)) {
                     session.setAttribute("errorMessage", "Mot de passe actuel incorrect.");
@@ -89,7 +100,12 @@ public class ProfilServlet extends HttpServlet {
                 String newPassword1 = req.getParameter("newPassword1");
                 String newPassword2 = req.getParameter("newPassword2");
 
-                if (!newPassword1.equals(newPassword2)) {
+                // Validation (puisque 'required' est enlevé)
+                if (oldPassword == null || oldPassword.isEmpty() ||
+                        newPassword1 == null || newPassword1.isEmpty() ||
+                        newPassword2 == null || newPassword2.isEmpty()) {
+                    session.setAttribute("errorMessage", "Tous les champs sont requis.");
+                } else if (!newPassword1.equals(newPassword2)) {
                     session.setAttribute("errorMessage", "Les nouveaux mots de passe ne correspondent pas.");
                 } else if (!employeeDAO.checkPassword(user.getId(), oldPassword)) {
                     session.setAttribute("errorMessage", "Ancien mot de passe incorrect.");

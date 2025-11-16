@@ -1,22 +1,30 @@
 <%@ page import="model.Employee" %>
 <%@ page import="model.Departement" %>
 <%@ page import="model.utils.Role" %>
+<%@ page import="model.Projet" %> <%-- 1. AJOUTER IMPORT --%>
+<%@ page import="java.util.List" %> <%-- 1. AJOUTER IMPORT --%>
 <%@ page contentType="text-html;charset=UTF-8" language="java" %>
 
 <%
+    // 1. Récupérer l'utilisateur de la session
     Employee user = (Employee) session.getAttribute("currentUser");
     if (user == null) {
         response.sendRedirect(request.getContextPath() + "/Connexion.jsp");
         return;
     }
 
+    // 2. Récupérer le département (passé par la Servlet)
     Departement departement = (Departement) request.getAttribute("departement");
     String nomDepartement = (departement != null) ? departement.getNomDepartement() : "Non assigné";
 
+    // 3. RÉCUPÉRER LES PROJETS
+    List<Projet> projets = (List<Projet>) request.getAttribute("projets");
+
+    // 4. GESTION DES MESSAGES (après le POST)
     String errorMessage = (String) session.getAttribute("errorMessage");
     String successMessage = (String) session.getAttribute("successMessage");
-    session.removeAttribute("errorMessage");
-    session.removeAttribute("successMessage");
+    session.removeAttribute("errorMessage"); // Nettoyer après lecture
+    session.removeAttribute("successMessage"); // Nettoyer après lecture
 %>
 
 <html>
@@ -54,6 +62,21 @@
             }
             .msg-success {
             color: green; background: #e0ffe0; padding: 10px; border-radius: 5px; margin-bottom: 15px;
+            }
+
+            /* NOUVEAU STYLE (Optionnel) */
+            .profile-projects {
+            font-size: 1.1em;
+            line-height: 1.6;
+            }
+            .profile-projects ul {
+            list-style-type: disc;
+            padding-left: 20px;
+            margin-top: 5px;
+            margin-bottom: 0;
+            }
+            .profile-projects p {
+            margin-bottom: 0;
             }
         </style>
     </head>
@@ -102,6 +125,23 @@
                         %>
                     </p>
                     <p><strong>Département:</strong> <%= nomDepartement %></p>
+
+                        <%-- ***** BLOC PROJETS AJOUTÉ ***** --%>
+                    <div class="profile-projects">
+                        <p><strong>Projet(s):</strong>
+                            <% if (projets == null || projets.isEmpty()) { %>
+                            <span>Aucun projet assigné</span>
+                            <% } else { %>
+                            <ul>
+                                <% for (Projet p : projets) { %>
+                                <li><%= p.getNomProjet() %> (<%= p.getEtat() %>)</li>
+                                <% } %>
+                            </ul>
+                            <% } %>
+                        </p>
+                    </div>
+                        <%-- ***** FIN DU BLOC PROJETS ***** --%>
+
                     <p><strong>Sexe:</strong> <%= user.getGender() %></p>
                 </div>
 
@@ -109,16 +149,12 @@
                     <h3>Changer mon email</h3>
                     <form action="${pageContext.request.contextPath}/profil" method="post">
                         <input type="hidden" name="action" value="updateEmail">
-
                         <label for="newEmail1">Nouvel Email:</label>
                         <input type="email" id="newEmail1" name="newEmail1">
-
                         <label for="newEmail2">Confirmer le nouvel email:</label>
                         <input type="email" id="newEmail2" name="newEmail2">
-
                         <label for="currentPassword">Mot de passe actuel:</label>
                         <input type="password" id="currentPassword" name="currentPassword">
-
                         <button type="submit" class="nav-button">Mettre à jour l'email</button>
                     </form>
                 </div>
@@ -127,16 +163,12 @@
                     <h3>Changer mon mot de passe</h3>
                     <form action="${pageContext.request.contextPath}/profil" method="post">
                         <input type="hidden" name="action" value="updatePassword">
-
                         <label for="newPassword1">Nouveau mot de passe:</label>
                         <input type="password" id="newPassword1" name="newPassword1">
-
                         <label for="newPassword2">Confirmer le nouveau mot de passe:</label>
                         <input type="password" id="newPassword2" name="newPassword2">
-
                         <label for="oldPassword">Mot de passe actuel:</label>
                         <input type="password" id="oldPassword" name="oldPassword">
-
                         <button type="submit" class="nav-button">Mettre à jour le mot de passe</button>
                     </form>
                 </div>

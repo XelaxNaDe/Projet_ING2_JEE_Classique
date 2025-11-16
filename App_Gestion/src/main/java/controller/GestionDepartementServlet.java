@@ -16,7 +16,6 @@ import java.io.IOException;
 import java.sql.SQLException;
 import java.util.List;
 
-// J'ai corrigé le 'name' de l'annotation pour qu'il corresponde à ta classe
 @WebServlet(name = "GestionDepartementServlet", urlPatterns = "/departements")
 public class GestionDepartementServlet extends HttpServlet {
 
@@ -29,12 +28,9 @@ public class GestionDepartementServlet extends HttpServlet {
         this.employeeDAO = new EmployeeDAO();
     }
 
-    /**
-     * Affiche la page de gestion des départements (POUR TOUS LES UTILISATEURS)
-     */
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-        // ... (ton code doGet est correct) ...
+        // ... (Ton code doGet est correct) ...
         HttpSession session = req.getSession(false);
         Employee user = (session != null) ? (Employee) session.getAttribute("currentUser") : null;
 
@@ -53,12 +49,9 @@ public class GestionDepartementServlet extends HttpServlet {
             req.setAttribute("errorMessage", "Erreur BDD : " + e.getMessage());
         }
 
-        req.getRequestDispatcher("/GestionDepartement.jsp").forward(req, resp); // Corrigé: GestionDepartements.jsp
+        req.getRequestDispatcher("/GestionDepartement.jsp").forward(req, resp);
     }
 
-    /**
-     * Gère la CRÉATION de départements (Admin seulement)
-     */
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         HttpSession session = req.getSession(false);
@@ -79,37 +72,38 @@ public class GestionDepartementServlet extends HttpServlet {
                 if (nom == null || nom.trim().isEmpty()) {
                     session.setAttribute("errorMessage", "Le nom du département est requis.");
                 } else {
-                    departementDAO.createDepartment(nom, idChef);
 
-                    // Assigner le rôle au nouveau chef
+                    // --- LOGIQUE CORRIGÉE ---
+                    // 1. D'ABORD, on libère le chef de son ancien poste (s'il en a un)
                     if (idChef > 0) {
-                        employeeDAO.assignHeadDepartementRole(idChef);
+                        departementDAO.removeAsChiefFromAnyDepartment(idChef);
                     }
+
+                    // 2. ENSUITE, on crée le nouveau département
+                    int newDeptId = departementDAO.createDepartment(nom, idChef);
+
+                    if (idChef > 0) {
+                        // 3. On assigne le rôle ET le département
+                        employeeDAO.assignHeadDepartementRole(idChef);
+                        employeeDAO.setEmployeeDepartment(idChef, newDeptId);
+                    }
+                    // --- FIN LOGIQUE ---
 
                     session.setAttribute("successMessage", "Département créé avec succès.");
                 }
 
             } else if ("delete".equals(action)) {
-
-                // 1. Récupérer l'ID du département à supprimer
+                // ... (La logique de suppression est correcte) ...
                 int id = Integer.parseInt(req.getParameter("deptId"));
-
-                // 2. (NOUVEAU) Avant de supprimer, trouver qui est le chef
                 int oldChefId = 0;
                 Departement deptASupprimer = departementDAO.findById(id);
                 if (deptASupprimer != null) {
                     oldChefId = deptASupprimer.getIdChefDepartement();
                 }
-
-                // 3. Appeler le DAO pour supprimer
                 departementDAO.deleteDepartment(id);
-
-                // 4. (NOUVEAU) Vérifier le statut de l'ancien chef
                 if (oldChefId > 0) {
                     employeeDAO.checkAndRemoveHeadDepartementRole(oldChefId);
                 }
-
-                // 5. Mettre un message de succès
                 session.setAttribute("successMessage", "Département supprimé avec succès.");
             }
 

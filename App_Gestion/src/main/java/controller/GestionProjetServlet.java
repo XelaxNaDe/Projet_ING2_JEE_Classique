@@ -100,54 +100,40 @@ public class GestionProjetServlet extends HttpServlet {
                 Date dateFin = formatter.parse(dateFinStr);
 
                 Projet nouveauProjet = new Projet(projectName, dateDebut, dateFin, idChefProjet, "En cours");
-                projetDAO.createProject(nouveauProjet);
 
-                // Assigner le rôle au nouveau chef
+                // 1. CRÉER LE PROJET ET RÉCUPÉRER L'ID
+                int newProjetId = projetDAO.createProject(nouveauProjet);
+
                 if (idChefProjet > 0) {
+                    // 2. Assigner le rôle de Chef
                     employeeDAO.assignProjectManagerRole(idChefProjet);
+
+                    // 3. (NOUVEAU) L'affecter automatiquement à l'équipe
+                    projetDAO.assignEmployeeToProject(newProjetId, idChefProjet, "Chef de Projet");
                 }
 
                 session.setAttribute("successMessage", "Projet '" + projectName + "' créé avec succès!");
 
             } else if ("delete".equals(action)) {
-
-                // 1. Récupérer l'ID du projet à supprimer
+                // ... (La logique de suppression est correcte) ...
                 int idProjet = Integer.parseInt(req.getParameter("projectId"));
-
-                // 2. (NOUVEAU) Avant de supprimer, trouver qui est le chef
                 int oldChefId = 0;
                 Projet projetASupprimer = projetDAO.getProjectById(idProjet);
                 if (projetASupprimer != null) {
                     oldChefId = projetASupprimer.getIdChefProjet();
                 }
-
-                // 3. Appeler le DAO pour supprimer
                 projetDAO.deleteProject(idProjet);
-
-                // 4. (NOUVEAU) Vérifier le statut de l'ancien chef
                 if (oldChefId > 0) {
                     employeeDAO.checkAndRemoveProjectManagerRole(oldChefId);
                 }
-
-                // 5. Mettre un message de succès
                 session.setAttribute("successMessage", "Projet (ID: " + idProjet + ") supprimé avec succès!");
-
-            } else {
-                session.setAttribute("errorMessage", "Action non reconnue.");
             }
 
-        } catch (SQLException e) {
+        } catch (SQLException | ParseException | NumberFormatException e) {
             e.printStackTrace();
-            session.setAttribute("errorMessage", "Erreur SQL : " + e.getMessage());
-        } catch (ParseException e) {
-            e.printStackTrace();
-            session.setAttribute("errorMessage", "Format de date invalide.");
-        } catch (NumberFormatException e) {
-            e.printStackTrace();
-            session.setAttribute("errorMessage", "ID invalide.");
+            session.setAttribute("errorMessage", "Erreur lors de l'opération : " + e.getMessage());
         }
 
-        // Redirection PRG (Post/Redirect/Get) à la fin
         resp.sendRedirect(req.getContextPath() + "/projets");
     }
 }

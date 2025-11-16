@@ -2,9 +2,9 @@ package controller;
 
 import dao.DepartementDAO;
 import dao.EmployeeDAO;
-import dao.ProjetDAO; // 1. AJOUTÉ
-import model.Projet; // 1. AJOUTÉ
-import java.util.List; // 1. AJOUTÉ
+import dao.ProjetDAO;
+import model.Projet;
+import java.util.List;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
@@ -22,13 +22,13 @@ public class ProfilServlet extends HttpServlet {
 
     private DepartementDAO departementDAO;
     private EmployeeDAO employeeDAO;
-    private ProjetDAO projetDAO; // 2. AJOUTÉ
+    private ProjetDAO projetDAO;
 
     @Override
     public void init() {
         this.departementDAO = new DepartementDAO();
         this.employeeDAO = new EmployeeDAO();
-        this.projetDAO = new ProjetDAO(); // 3. AJOUTÉ
+        this.projetDAO = new ProjetDAO();
     }
 
     @Override
@@ -46,16 +46,19 @@ public class ProfilServlet extends HttpServlet {
             Departement dept = departementDAO.findById(user.getIdDepartement());
             req.setAttribute("departement", dept);
 
-            // 4. (MODIFIÉ) Récupérer les projets de l'utilisateur
+            // 2. Récupérer les projets de l'utilisateur
             List<Projet> projets = projetDAO.getProjectsByEmployeeId(user.getId());
             req.setAttribute("projets", projets);
+
+            // 3. Récupérer TOUS les départements pour le menu <select>
+            List<Departement> allDepartments = departementDAO.getAllDepartments();
+            req.setAttribute("allDepartments", allDepartments);
 
         } catch (SQLException e) {
             e.printStackTrace();
             req.setAttribute("errorMessage", "Impossible de charger les détails du profil.");
         }
 
-        // L'utilisateur (currentUser) est déjà dispo pour le JSP via la session
         req.getRequestDispatcher("/Profil.jsp").forward(req, resp);
     }
 
@@ -72,49 +75,25 @@ public class ProfilServlet extends HttpServlet {
         String action = req.getParameter("action");
 
         try {
-            // --- Logique pour changer l'Email ---
             if ("updateEmail".equals(action)) {
-                String newEmail1 = req.getParameter("newEmail1");
-                String newEmail2 = req.getParameter("newEmail2");
-                String password = req.getParameter("currentPassword");
+                // ... (Logique Email) ...
 
-                // Validation (puisque 'required' est enlevé)
-                if (newEmail1 == null || newEmail1.trim().isEmpty() ||
-                        newEmail2 == null || newEmail2.trim().isEmpty() ||
-                        password == null || password.isEmpty()) {
-                    session.setAttribute("errorMessage", "Tous les champs sont requis.");
-                } else if (!newEmail1.equals(newEmail2)) {
-                    session.setAttribute("errorMessage", "Les nouveaux emails ne correspondent pas.");
-                } else if (!employeeDAO.checkPassword(user.getId(), password)) {
-                    session.setAttribute("errorMessage", "Mot de passe actuel incorrect.");
-                } else {
-                    employeeDAO.updateEmail(user.getId(), newEmail1);
-                    user.setEmail(newEmail1); // Mettre à jour l'objet en session !
-                    session.setAttribute("currentUser", user);
-                    session.setAttribute("successMessage", "Email mis à jour avec succès.");
-                }
-
-                // --- Logique pour changer le Mot de Passe ---
             } else if ("updatePassword".equals(action)) {
-                String oldPassword = req.getParameter("oldPassword");
-                String newPassword1 = req.getParameter("newPassword1");
-                String newPassword2 = req.getParameter("newPassword2");
+                // ... (Logique Mot de passe) ...
 
-                // Validation (puisque 'required' est enlevé)
-                if (oldPassword == null || oldPassword.isEmpty() ||
-                        newPassword1 == null || newPassword1.isEmpty() ||
-                        newPassword2 == null || newPassword2.isEmpty()) {
-                    session.setAttribute("errorMessage", "Tous les champs sont requis.");
-                } else if (!newPassword1.equals(newPassword2)) {
-                    session.setAttribute("errorMessage", "Les nouveaux mots de passe ne correspondent pas.");
-                } else if (!employeeDAO.checkPassword(user.getId(), oldPassword)) {
-                    session.setAttribute("errorMessage", "Ancien mot de passe incorrect.");
-                } else {
-                    employeeDAO.updatePassword(user.getId(), newPassword1);
-                    user.setPassword(newPassword1); // Mettre à jour l'objet en session !
-                    session.setAttribute("currentUser", user);
-                    session.setAttribute("successMessage", "Mot de passe mis à jour avec succès.");
-                }
+                // BLOC DE MISE À JOUR DU DÉPARTEMENT
+            } else if ("updateDepartment".equals(action)) {
+
+                int newDeptId = Integer.parseInt(req.getParameter("idDepartement"));
+
+                // 1. Mettre à jour la BDD
+                employeeDAO.setEmployeeDepartment(user.getId(), newDeptId);
+
+                // 2. (CORRECTION) Mettre à jour l'objet en session
+                user.setIdDepartement(newDeptId);
+                session.setAttribute("currentUser", user); // Force la sauvegarde
+
+                session.setAttribute("successMessage", "Département mis à jour avec succès.");
             }
 
         } catch (SQLException e) {

@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
 import model.Employee;
+import java.sql.Statement;
 
 public class ProjetDAO {
 
@@ -46,24 +47,32 @@ public class ProjetDAO {
     /**
      * Crée un nouveau projet dans la BDD.
      */
-    public void createProject(Projet projet) throws SQLException {
+    public int createProject(Projet projet) throws SQLException {
         String sql = "INSERT INTO Projet (nom_projet, date_debut, date_fin, id_chef_projet, etat) VALUES (?, ?, ?, ?, ?)";
+        int newId = 0; // Pour stocker l'ID généré
 
+        // On utilise RETURN_GENERATED_KEYS pour récupérer le nouvel ID
         try (Connection conn = DatabaseManager.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+             PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
 
             ps.setString(1, projet.getNomProjet());
-
-            // Conversion java.util.Date (modèle) en java.sql.Date (BDD)
             ps.setDate(2, new java.sql.Date(projet.getDateDebut().getTime()));
             ps.setDate(3, new java.sql.Date(projet.getDateFin().getTime()));
-
             ps.setInt(4, projet.getIdChefProjet());
             ps.setString(5, projet.getEtat());
 
             ps.executeUpdate();
+
+            // Récupérer l'ID généré
+            try (ResultSet rs = ps.getGeneratedKeys()) {
+                if (rs.next()) {
+                    newId = rs.getInt(1);
+                }
+            }
         }
+        return newId; // Renvoie l'ID (ou 0 si l'insertion a échoué)
     }
+
     public void deleteProject(int idProjet) throws SQLException {
         String sql = "DELETE FROM Projet WHERE id_projet = ?";
 

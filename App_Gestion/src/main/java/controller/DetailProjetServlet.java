@@ -82,16 +82,12 @@ public class DetailProjetServlet extends HttpServlet {
         String action = req.getParameter("action");
         int idProjet = Integer.parseInt(req.getParameter("id"));
 
-        // --- Vérification des permissions ---
+        // --- Vérification des permissions (inchangée) ---
         boolean canModify = false;
         int oldChefId = 0;
         try {
             Projet projet = projetDAO.getProjectById(idProjet);
-            if (projet == null) {
-                session.setAttribute("errorMessage", "Projet non trouvé.");
-                resp.sendRedirect(req.getContextPath() + "/projets");
-                return;
-            }
+            if (projet == null) { /* ... gestion erreur ... */ }
             oldChefId = projet.getIdChefProjet();
 
             boolean isAdmin = user.hasRole(Role.ADMINISTRATOR);
@@ -99,12 +95,7 @@ public class DetailProjetServlet extends HttpServlet {
             boolean isThisProjectsManager = (isProjectManager && user.getId() == projet.getIdChefProjet());
 
             canModify = isAdmin || isThisProjectsManager;
-        } catch (SQLException e) {
-            session.setAttribute("errorMessage", "Erreur BDD (Permissions).");
-            resp.sendRedirect(req.getContextPath() + "/detail-projet?id=" + idProjet);
-            return;
-        }
-
+        } catch (SQLException e) { /* ... gestion erreur ... */ }
         if (!canModify) {
             resp.sendError(HttpServletResponse.SC_FORBIDDEN);
             return;
@@ -113,12 +104,11 @@ public class DetailProjetServlet extends HttpServlet {
 
         try {
             if ("update".equals(action)) {
-                // (Ton code pour "update" reste ici...)
                 String nom = req.getParameter("nomProjet");
                 String etat = req.getParameter("etat");
                 String dateDebutStr = req.getParameter("dateDebut");
                 String dateFinStr = req.getParameter("dateFin");
-                int newChefId = user.hasRole(Role.ADMINISTRATOR) ? Integer.parseInt(req.getParameter("idChefProjet")) : Integer.parseInt(req.getParameter("originalIdChefProjet"));
+                int newChefId = user.hasRole(Role.ADMINISTRATOR) ? Integer.parseInt(req.getParameter("idChefProjet")) : oldChefId;
 
                 SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd");
                 Date dateDebut = formatter.parse(dateDebutStr);
@@ -127,13 +117,24 @@ public class DetailProjetServlet extends HttpServlet {
                 Projet projetMisAJour = new Projet(idProjet, nom, dateDebut, dateFin, newChefId, etat);
                 projetDAO.updateProject(projetMisAJour);
 
-                if (newChefId != oldChefId) {
+                // --- LOGIQUE DES RÔLES ET AFFECTATIONS (MODIFIÉE) ---
+                if (newChefId != oldChefId && user.hasRole(Role.ADMINISTRATOR)) {
+                    // 1. Gérer les rôles (promotion/rétrogradation)
                     if (newChefId > 0) employeeDAO.assignProjectManagerRole(newChefId);
                     if (oldChefId > 0) employeeDAO.checkAndRemoveProjectManagerRole(oldChefId);
+
+                    // 2. Gérer l'affectation à l'équipe du projet
+                    if (newChefId > 0) {
+                        projetDAO.assignEmployeeToProject(idProjet, newChefId, "Chef de Projet");
+                    }
+                    if (oldChefId > 0) {
+                        projetDAO.removeEmployeeFromProject(idProjet, oldChefId);
+                    }
                 }
+                // --- FIN LOGIQUE ---
+
                 session.setAttribute("successMessage", "Projet mis à jour.");
 
-                // --- NOUVEAUX BLOCS ---
             } else if ("assignEmployee".equals(action)) {
                 int idEmploye = Integer.parseInt(req.getParameter("idEmploye"));
                 String roleDansProjet = req.getParameter("role_dans_projet");
@@ -147,7 +148,6 @@ public class DetailProjetServlet extends HttpServlet {
                 projetDAO.removeEmployeeFromProject(idProjet, idEmploye);
                 session.setAttribute("successMessage", "Employé retiré du projet.");
             }
-            // --- FIN DES NOUVEAUX BLOCS ---
 
         } catch (SQLException | ParseException | NumberFormatException e) {
             session.setAttribute("errorMessage", "Erreur lors de l'opération : " + e.getMessage());

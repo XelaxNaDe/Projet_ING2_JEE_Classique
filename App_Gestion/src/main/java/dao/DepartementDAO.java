@@ -7,6 +7,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+import java.sql.Statement;
 
 public class DepartementDAO {
 
@@ -66,15 +67,16 @@ public class DepartementDAO {
     /**
      * Crée un nouveau département (sans chef pour l'instant).
      */
-    public void createDepartment(String nom, int idChef) throws SQLException {
+    public int createDepartment(String nom, int idChef) throws SQLException {
         String sql = "INSERT INTO Departement (nom_departement, id_chef_departement) VALUES (?, ?)";
+        int newId = 0; // Pour stocker l'ID généré
 
+        // On doit utiliser un try-with-resources plus complexe pour récupérer les clés
         try (Connection conn = DatabaseManager.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+             PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
 
             ps.setString(1, nom);
 
-            // Si l'ID est 0 (pour "-- Non Assigné --"), on insère NULL
             if (idChef == 0) {
                 ps.setNull(2, java.sql.Types.INTEGER);
             } else {
@@ -82,7 +84,15 @@ public class DepartementDAO {
             }
 
             ps.executeUpdate();
+
+            // Récupérer l'ID généré
+            try (ResultSet rs = ps.getGeneratedKeys()) {
+                if (rs.next()) {
+                    newId = rs.getInt(1);
+                }
+            }
         }
+        return newId; // Renvoie l'ID (ou 0 si l'insertion a échoué)
     }
 
     /**
@@ -100,12 +110,36 @@ public class DepartementDAO {
     }
     public void updateDepartment(int id, String nom, int idChef) throws SQLException {
         String sql = "UPDATE Departement SET nom_departement = ?, id_chef_departement = ? WHERE id_departement = ?";
+
         try (Connection conn = DatabaseManager.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
 
             ps.setString(1, nom);
-            ps.setInt(2, idChef);
+
+            // --- CORRECTION ICI ---
+            // Si l'ID est 0, on met NULL. Sinon, on met l'ID.
+            if (idChef == 0) {
+                ps.setNull(2, java.sql.Types.INTEGER);
+            } else {
+                ps.setInt(2, idChef);
+            }
+            // --- FIN CORRECTION ---
+
             ps.setInt(3, id);
+            ps.executeUpdate();
+        }
+    }
+
+    public void removeAsChiefFromAnyDepartment(int idChef) throws SQLException {
+
+        // --- CORRECTION ICI ---
+        // On met NULL (Non assigné) au lieu de 0
+        String sql = "UPDATE Departement SET id_chef_departement = NULL WHERE id_chef_departement = ?";
+
+        try (Connection conn = DatabaseManager.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setInt(1, idChef);
             ps.executeUpdate();
         }
     }

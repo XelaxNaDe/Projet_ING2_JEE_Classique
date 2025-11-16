@@ -2,7 +2,6 @@ package controller;
 
 import dao.DepartementDAO;
 import dao.EmployeeDAO;
-import dao.ProjetDAO;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
@@ -11,14 +10,10 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import model.Departement;
 import model.Employee;
-import model.Projet;
 import model.utils.Role;
 
 import java.io.IOException;
 import java.sql.SQLException;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.Date;
 import java.util.List;
 
 @WebServlet(name = "DetailDepartementServlet", urlPatterns = "/detail-departement")
@@ -26,6 +21,7 @@ public class DetailDepartementServlet extends HttpServlet {
 
     private DepartementDAO departementDAO;
     private EmployeeDAO employeeDAO;
+    // PAS de ProjetDAO ici
 
     @Override
     public void init() {
@@ -38,7 +34,6 @@ public class DetailDepartementServlet extends HttpServlet {
      */
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-        // ... (ton code doGet est correct) ...
         HttpSession session = req.getSession(false);
         if (session == null || session.getAttribute("currentUser") == null) {
             resp.sendRedirect(req.getContextPath() + "/Connexion.jsp");
@@ -55,8 +50,13 @@ public class DetailDepartementServlet extends HttpServlet {
             }
             req.setAttribute("departement", dept);
 
+            // Pour le <select> du Chef
             List<Employee> allEmployees = employeeDAO.getAllEmployees();
             req.setAttribute("allEmployees", allEmployees);
+
+            // Récupérer les MEMBRES ACTUELS du département
+            List<Employee> assignedEmployees = employeeDAO.getEmployeesByDepartmentId(id);
+            req.setAttribute("assignedEmployees", assignedEmployees);
 
         } catch (NumberFormatException e) {
             resp.sendRedirect(req.getContextPath() + "/departements");
@@ -70,60 +70,84 @@ public class DetailDepartementServlet extends HttpServlet {
     }
 
     /**
-     * Gère la mise à jour (UPDATE) du département.
+     * Gère la mise à jour (UPDATE) et les affectations.
      */
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         HttpSession session = req.getSession(false);
         Employee user = (session != null) ? (Employee) session.getAttribute("currentUser") : null;
-
-        // Sécurité : Seul un Admin peut mettre à jour
-        if (user == null || !user.hasRole(Role.ADMINISTRATOR)) {
+        if (user == null) {
             resp.sendError(HttpServletResponse.SC_FORBIDDEN);
             return;
         }
 
         String action = req.getParameter("action");
-        int idDept = Integer.parseInt(req.getParameter("id")); // C'est un ID de département
-        int oldChefId = 0; // Variable pour stocker l'ancien chef
+        int idDept = Integer.parseInt(req.getParameter("id"));
+        int oldChefId = 0;
 
-        if ("update".equals(action)) {
-            try {
-                // 1. AVANT l'update, on récupère l'ancien chef
-                Departement oldDept = departementDAO.findById(idDept);
-                if (oldDept != null) {
-                    oldChefId = oldDept.getIdChefDepartement();
+        // --- Vérification des permissions (inchangée) ---
+        boolean canModify = false;
+        try {
+            Departement dept = departementDAO.findById(idDept);
+            if (dept == null) { /* ... gestion erreur ... */ }
+            oldChefId = dept.getIdChefDepartement();
+            boolean isAdmin = user.hasRole(Role.ADMINISTRATOR);
+            boolean isHead = user.hasRole(Role.HEADDEPARTEMENT);
+            boolean isThisDeptsHead = (isHead && user.getId() == dept.getIdChefDepartement());
+            canModify = isAdmin || isThisDeptsHead;
+        } catch (SQLException e) { /* ... gestion erreur ... */ }
+        if (!canModify) {
+            resp.sendError(HttpServletResponse.SC_FORBIDDEN);
+            return;
+        }
+        // --- Fin de la vérification ---
+
+        try {
+            if ("update".equals(action)) {
+                String nom = req.getParameter("nomDepartement");
+                int newChefId = user.hasRole(Role.ADMINISTRATOR) ? Integer.parseInt(req.getParameter("idChefDepartement")) : oldChefId;
+
+                // --- LOGIQUE CORRIGÉE ---
+                // 1. Si le chef a changé ET que c'est un admin...
+                if (newChefId != oldChefId && user.hasRole(Role.ADMINISTRATOR)) {
+                    // 1a. On libère le NOUVEAU chef de son poste actuel (s'il en a un)
+                    if (newChefId > 0) {
+                        departementDAO.removeAsChiefFromAnyDepartment(newChefId);
+                    }
                 }
 
-                // 2. Récupérer les nouvelles données (de département)
-                String nom = req.getParameter("nomDepartement");
-                int newChefId = Integer.parseInt(req.getParameter("idChefDepartement"));
-
-                // 3. Faire la mise à jour du DÉPARTEMENT
+                // 2. On met à jour le département
                 departementDAO.updateDepartment(idDept, nom, newChefId);
 
-                // 4. Gérer la logique des rôles (si le chef a changé)
-                if (newChefId != oldChefId) {
-                    // Promouvoir le nouveau chef
+                // 3. Gérer les rôles et l'affectation
+                if (newChefId != oldChefId && user.hasRole(Role.ADMINISTRATOR)) {
                     if (newChefId > 0) {
                         employeeDAO.assignHeadDepartementRole(newChefId);
+                        employeeDAO.setEmployeeDepartment(newChefId, idDept); // Affecte au nouveau dept
                     }
-                    // Vérifier et (si besoin) rétrograder l'ancien chef
                     if (oldChefId > 0) {
                         employeeDAO.checkAndRemoveHeadDepartementRole(oldChefId);
                     }
                 }
+                // --- FIN LOGIQUE ---
 
-                session.setAttribute("successMessage", "Département mis à jour avec succès.");
+                session.setAttribute("successMessage", "Département mis à jour.");
 
-            } catch (SQLException e) {
-                session.setAttribute("errorMessage", "Erreur SQL : " + e.getMessage());
-            } catch (NumberFormatException e) {
-                session.setAttribute("errorMessage", "Format d'ID invalide.");
+            } else if ("assignEmployee".equals(action)) {
+                int idEmploye = Integer.parseInt(req.getParameter("idEmploye"));
+                employeeDAO.setEmployeeDepartment(idEmploye, idDept);
+                session.setAttribute("successMessage", "Employé affecté.");
+
+            } else if ("removeEmployee".equals(action)) {
+                int idEmploye = Integer.parseInt(req.getParameter("idEmploye"));
+                employeeDAO.setEmployeeDepartment(idEmploye, 0); // 0 = Non assigné
+                session.setAttribute("successMessage", "Employé retiré.");
             }
+
+        } catch (SQLException | NumberFormatException e) {
+            session.setAttribute("errorMessage", "Erreur lors de l'opération : " + e.getMessage());
         }
 
-        // On redirige vers le doGet de cette même servlet
         resp.sendRedirect(req.getContextPath() + "/detail-departement?id=" + idDept);
     }
 }

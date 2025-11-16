@@ -59,8 +59,6 @@ public class EmployeeDAO {
                 while (rs.next()) {
                     String roleName = rs.getString("nom_role");
                     try {
-                        // Convertit le String de la BDD (ex: "ADMINISTRATOR")
-                        // en Enum (Role.ADMINISTRATOR)
                         user.addRole(Role.valueOf(roleName));
                     } catch (IllegalArgumentException e) {
                         System.err.println("Rôle BDD inconnu: " + roleName);
@@ -69,7 +67,6 @@ public class EmployeeDAO {
             }
         }
     }
-
     /**
      * Récupère un employé par son ID (pour le formulaire de modification).
      */
@@ -197,6 +194,38 @@ public class EmployeeDAO {
     }
 
     /**
+     * Récupère la liste des employés qui sont dans un département spécifique.
+     */
+    public List<Employee> getEmployeesByDepartmentId(int idDepartement) throws SQLException {
+        List<Employee> employees = new ArrayList<>();
+        String sql = "SELECT * FROM Employee WHERE id_departement = ?";
+
+        try (Connection conn = DatabaseManager.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setInt(1, idDepartement);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Employee emp = new Employee(
+                            rs.getString("fname"),
+                            rs.getString("sname"),
+                            rs.getString("gender"),
+                            rs.getString("email"),
+                            rs.getString("password"),
+                            rs.getString("position"),
+                            rs.getString("grade"),
+                            rs.getInt("id_departement")
+                    );
+                    emp.setId(rs.getInt("id"));
+                    employees.add(emp);
+                }
+            }
+        }
+        return employees;
+    }
+
+    /**
      * Récupère la liste de tous les postes (uniques)
      */
     public List<String> getDistinctPostes() throws SQLException {
@@ -283,6 +312,28 @@ public class EmployeeDAO {
              PreparedStatement ps = conn.prepareStatement(sql)) {
 
             ps.setInt(1, id);
+            ps.executeUpdate();
+        }
+    }
+
+    /**
+     * Change (ou assigne) le département d'un employé.
+     * Si idDepartement = 0, l'employé est "Non assigné".
+     */
+    public void setEmployeeDepartment(int idEmploye, int idDepartement) throws SQLException {
+        String sql = "UPDATE Employee SET id_departement = ? WHERE id = ?";
+
+        try (Connection conn = DatabaseManager.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            if (idDepartement == 0) {
+                // Si l'ID est 0, on met NULL dans la BDD
+                ps.setNull(1, java.sql.Types.INTEGER);
+            } else {
+                ps.setInt(1, idDepartement);
+            }
+            ps.setInt(2, idEmploye);
+
             ps.executeUpdate();
         }
     }

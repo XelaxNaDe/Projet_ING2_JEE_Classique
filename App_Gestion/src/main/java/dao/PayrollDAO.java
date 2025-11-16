@@ -140,7 +140,7 @@ public class PayrollDAO {
      * Crée une nouvelle ligne de prime ou déduction fiche de paie.
      */
     public void createPayrollLine(IntStringPayroll payLine) throws SQLException {
-        String sql = "INSERT INTO Payroll (id_payroll, amount, label, type) " +
+        String sql = "INSERT INTO Payroll (id_payroll, amount, label, type_list) " +
                 "VALUES (?, ?, ?, ?)";
         try (Connection conn = DatabaseManager.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -158,7 +158,7 @@ public class PayrollDAO {
      * Met à jour une ligne de prime ou déduction fiche de paie.
      */
     public void updatePayrollLine(IntStringPayroll payLine) throws SQLException {
-        String sql = "UPDATE Payroll SET id_payroll = ?, amount = ?, label = ?,type = ? " +
+        String sql = "UPDATE Payroll SET id_payroll = ?, amount = ?, label = ?,type_list = ? " +
                         "WHERE id_line = ?";
 
         try (Connection conn = DatabaseManager.getConnection();

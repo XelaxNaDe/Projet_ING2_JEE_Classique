@@ -66,7 +66,12 @@ public class GestionPayrollServlet extends HttpServlet {
 
             // Récupérer tous les employés pour le menu déroulant de recherche
             List<Employee> allEmployees = employeeDAO.getAllEmployees();
-
+            if(!user.hasRole(Role.ADMINISTRATOR)) {
+                listePayrolls.clear();
+                listePayrolls = payrollDAO.findPayrollByEmployee(user.getId());
+                allEmployees.clear();
+                allEmployees.add(user);
+            }
             req.setAttribute("listePayrolls", listePayrolls);
             req.setAttribute("allEmployees", allEmployees);
 

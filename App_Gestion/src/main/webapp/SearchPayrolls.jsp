@@ -1,5 +1,210 @@
+<%@ page import="model.Employee" %>
+<%@ page import="model.Payroll" %>
+<%@ page import="model.utils.Role" %>
+<%@ page import="java.util.List" %>
+<%@ page import="java.time.format.DateTimeFormatter" %>
+<%@ page import="java.util.Locale" %>
+<%@ page import="java.text.NumberFormat" %>
+<%@ page contentType="text/html;charset=UTF-8" language="java" %>
+
+<%
+    // --- Initialisation et Sécurité ---
+    Employee user = (Employee) session.getAttribute("currentUser");
+    if (user == null) {
+        response.sendRedirect(request.getContextPath() + "/Connexion.jsp");
+        return;
+    }
+
+    boolean isAdmin = user.hasRole(Role.ADMINISTRATOR);
+    // Récupération des données passées par le Servlet
+    List<Payroll> listePayrolls = (List<Payroll>) request.getAttribute("listePayrolls");
+    List<Employee> allEmployees = (List<Employee>) request.getAttribute("allEmployees");
+
+    // Gestion des messages (stockés en session ou requête)
+    String errorMessage = (String) session.getAttribute("errorMessage");
+    session.removeAttribute("errorMessage");
+    String successMessage = (String) session.getAttribute("successMessage");
+    session.removeAttribute("successMessage");
+    String reqError = (String) request.getAttribute("errorMessage");
+
+    // Récupérer les paramètres de recherche pour les conserver dans le formulaire
+    String searchEmployeeId = request.getParameter("search_employee");
+    String searchDateDebut = request.getParameter("date_debut");
+    String searchDateFin = request.getParameter("date_fin");
+
+    // Formatter pour l'affichage de la date
+    DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy", Locale.FRANCE);
+
+    // Formatter pour la monnaie (Euro, France)
+    NumberFormat currencyFormatter = NumberFormat.getCurrencyInstance(Locale.FRANCE);
+    currencyFormatter.setMaximumFractionDigits(2);
+    currencyFormatter.setMinimumFractionDigits(2);
+%>
+
 <html>
-<body>
-<h2>Hello World!</h2>
+<head>
+    <title>Gestion des Fiches de Paie</title>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="${pageContext.request.contextPath}/public/css/style.css">
+    <style>
+        .data-table, .data-form, .filter-form {
+            background: #fff; padding: 20px; border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px;
+        }
+        .data-table table { width: 100%; border-collapse: collapse; }
+        .data-table th, .data-table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+
+        .filter-form form {
+            display: flex; flex-wrap: wrap; gap: 15px;
+        }
+        .filter-form .form-row {
+            width: 100%; display: flex; gap: 15px; align-items: flex-end;
+        }
+        .filter-form .form-group { flex: 1; min-width: 150px; }
+        .filter-form label { font-weight: bold; display: block; margin-bottom: 5px; }
+        .filter-form input[type="text"],
+        .filter-form input[type="date"],
+        .filter-form select {
+            width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;
+        }
+        .filter-form button {
+            padding: 8px 15px; background-color: #007bff; color: white;
+            border: none; border-radius: 4px; cursor: pointer; height: 38px;
+        }
+
+        .admin-controls {
+            display: flex; flex-direction: column;
+            align-items: flex-start; gap: 5px;
+        }
+        .admin-controls form { display: inline; margin: 0; }
+        .admin-controls button {
+            color: red; border: none; background: none; cursor: pointer; padding: 0;
+            font-family: inherit; font-size: 1em; text-decoration: underline;
+        }
+        .admin-controls button:hover { color: #c82333; }
+
+        .msg-error { color: red; background: #ffe0e0; padding: 10px; border-radius: 5px; margin-bottom: 15px; }
+        .msg-success { color: green; background: #e0ffe0; padding: 10px; border-radius: 5px; margin-bottom: 15px; }
+        .detail-button {
+            padding: 5px 10px; font-size: 14px; text-decoration: none;
+            background-color: #007bff; color: white; border-radius: 4px;
+            display: inline-block;
+        }
+        .add-button {
+            padding: 10px 15px; text-decoration: none; background-color: #28a745;
+            color: white; border-radius: 5px; display: inline-block; margin-bottom: 20px;
+        }
+        .print-button {
+            padding: 5px 10px; font-size: 14px; text-decoration: none;
+            background-color: #6c757d; color: white; border-radius: 4px;
+            display: inline-block; margin-right: 5px;
+        }
+    </style>
+</head>
+<body class="main-page">
+
+<div class="header">
+    <h2>Gestion des Fiches de Paie</h2>
+    <a href="${pageContext.request.contextPath}/accueil" class="nav-button" style="margin-left: 20px;">Retour à l'accueil</a>
+</div>
+
+<div class="container">
+    <h1>Gérer les Fiches de Paie</h1>
+
+    <%-- Affichage des messages --%>
+    <% if (reqError != null) { %> <div class="msg-error"><%= reqError %></div> <% } %>
+    <% if (errorMessage != null) { %> <div class="msg-error"><%= errorMessage %></div> <% } %>
+    <% if (successMessage != null) { %> <div class="msg-success"><%= successMessage %></div> <% } %>
+
+    <% if (isAdmin) { %>
+    <a href="${pageContext.request.contextPath}/detail-payroll" class="add-button">Créer une nouvelle fiche de paie</a>
+    <% } %>
+
+    <div class="filter-form">
+        <h3>Rechercher les fiches de paie</h3>
+        <form action="${pageContext.request.contextPath}/payroll" method="get">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="search_employee">Employé:</label>
+                    <select id="search_employee" name="search_employee">
+                        <option value="">Tous les employés</option>
+                        <%
+                            if (allEmployees != null) {
+                                for (Employee emp : allEmployees) {
+                                    String selected = (searchEmployeeId != null && searchEmployeeId.equals(String.valueOf(emp.getId()))) ? "selected" : "";
+                        %>
+                        <option value="<%= emp.getId() %>" <%= selected %>><%= emp.getFname() %> <%= emp.getSname() %></option>
+                        <%      }
+                        }
+                        %>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="date_debut">Date début:</label>
+                    <input type="date" id="date_debut" name="date_debut" value="<%= (searchDateDebut != null) ? searchDateDebut : "" %>">
+                </div>
+                <div class="form-group">
+                    <label for="date_fin">Date fin:</label>
+                    <input type="date" id="date_fin" name="date_fin" value="<%= (searchDateFin != null) ? searchDateFin : "" %>">
+                </div>
+                <button type="submit">Rechercher / Filtrer</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="data-table">
+        <h3>Fiches de Paie</h3>
+        <table>
+            <thead>
+            <tr>
+                <th>ID Fiche</th>
+                <th>Employé</th>
+                <th>Date</th>
+                <th>Salaire Brut</th>
+                <th>Net à Payer</th>
+                <th>Actions</th>
+            </tr>
+            </thead>
+            <tbody>
+            <%
+                if (listePayrolls != null && !listePayrolls.isEmpty()) {
+                    for (Payroll payroll : listePayrolls) {
+                        // Formatage des valeurs
+                        String formattedDate = payroll.getDate().format(dateFormatter);
+                        String formattedSalary = currencyFormatter.format(payroll.getSalary());
+                        String formattedNetPay = currencyFormatter.format(payroll.getNetPay());
+            %>
+            <tr>
+                <td><%= payroll.getId() %></td>
+                <td><%= payroll.getEmployee().getFname() %> <%= payroll.getEmployee().getSname() %></td>
+                <td><%= formattedDate %></td>
+                <td><%= formattedSalary %></td>
+                <td><%= formattedNetPay %></td>
+                <td class="admin-controls">
+                    <div style="display: flex; gap: 5px; align-items: center;">
+                        <a href="${pageContext.request.contextPath}/detail-payroll?id=<%= payroll.getId() %>" class="detail-button">Consulter</a>
+                        <a href="${pageContext.request.contextPath}/print-payroll?id=<%= payroll.getId() %>" class="print-button" target="_blank">Imprimer</a>
+                    </div>
+                    <% if (isAdmin) { %>
+                    <form action="${pageContext.request.contextPath}/payroll" method="post">
+                        <input type="hidden" name="action" value="delete">
+                        <input type="hidden" name="IdPayroll" value="<%= payroll.getId() %>">
+                        <button type="submit" onclick="return confirm('Supprimer cette fiche de paie (ID: <%= payroll.getId() %>) ?');">Supprimer</button>
+                    </form>
+                    <% } %>
+                </td>
+            </tr>
+            <%
+                }
+            } else {
+            %>
+            <tr>
+                <td colspan="6" style="text-align: center;">Aucune fiche de paie trouvée.</td>
+            </tr>
+            <% } %>
+            </tbody>
+        </table>
+    </div>
+</div>
 </body>
 </html>

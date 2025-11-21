@@ -10,9 +10,12 @@
     // --- Sécurité ---
     Employee user = (Employee) session.getAttribute("currentUser");
     if (user == null) {
-        response.sendRedirect(request.getContextPath() + "/accueil");
+        response.sendRedirect(request.getContextPath() + "/connexion.jsp");
         return;
     }
+
+    // NOUVEAU : Déclaration de isAdmin
+    boolean isAdmin = user.hasRole(Role.ADMINISTRATOR);
 
     // --- Récupération des données ---
     List<Employee> allEmployees = (List<Employee>) request.getAttribute("allEmployees");
@@ -31,13 +34,16 @@
 
 <html>
 <head>
-    <title><%= isEditMode ? "Modifier Fiche de Paie" : "Créer Fiche de Paie" %></title>
+    <title><%= isEditMode ? (isAdmin ? "Modifier Fiche de Paie" : "Consulter Fiche de Paie") : "Créer Fiche de Paie" %></title>
     <meta charset="UTF-8">
     <link rel="stylesheet" href="${pageContext.request.contextPath}/public/css/style.css">
     <style>
-        /* Styles identiques au précédent */
+        /* Styles pour le tableau et les champs */
         .payroll-grid { width: 100%; border-collapse: collapse; margin-top: 15px; }
         .payroll-grid th, .payroll-grid td { border: 1px solid #ccc; padding: 5px; text-align: center; }
+        /* Style pour les champs en lecture seule */
+        .payroll-grid input:read-only, .payroll-grid select:disabled,
+        input[readonly], select[disabled] { background-color: #eee; cursor: default; }
         .payroll-grid input, .payroll-grid select { width: 100%; border: none; padding: 8px; box-sizing: border-box; }
         .payroll-grid input:focus, .payroll-grid select:focus { outline: 2px solid #007bff; background-color: #f0f8ff; }
         .total-row { background-color: #f8f9fa; font-weight: bold; font-size: 1.1em; }
@@ -48,33 +54,37 @@
 <body class="main-page">
 
 <div class="header">
-    <h2><%= isEditMode ? "Modification Fiche de Paie" : "Création Fiche de Paie" %></h2>
+    <h2><%= isEditMode ? (isAdmin ? "Modification Fiche de Paie" : "Détails Fiche de Paie") : "Création Fiche de Paie" %></h2>
     <a href="${pageContext.request.contextPath}/payroll" class="nav-button" style="margin-left: 20px;">Retour à la liste</a>
 </div>
 
 <div class="container">
-    <h1><%= isEditMode ? "Modifier la fiche de Paie" + payroll.getId() : "Nouvelle Fiche de Paie" %></h1>
+    <h1><%= isEditMode ? (isAdmin ? "Modifier la fiche de Paie n°" + payroll.getId() : "Consulter la fiche de Paie n°" + payroll.getId()) : "Nouvelle Fiche de Paie" %></h1>
 
     <div class="data-form" style="background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
 
+        <%-- Début du formulaire (remplacé par <div> si l'utilisateur n'est pas Admin) --%>
+        <% if (isAdmin) { %>
         <form action="${pageContext.request.contextPath}/payroll" method="post" id="payrollForm">
+            <% } else { %>
+            <div id="payrollForm">
+                    <% } %>
 
-            <%-- Gestion de l'action (create ou update) --%>
-            <input type="hidden" name="action" value="<%= isEditMode ? "update" : "create" %>">
+                <%-- Champs cachés (toujours inclus pour le JS et les données) --%>
+                    <% if (isAdmin) { %>
+                <input type="hidden" name="action" value="<%= isEditMode ? "update" : "create" %>">
+                    <% } %>
+                    <% if (isEditMode) { %>
+                <input type="hidden" name="id_payroll" value="<%= payroll.getId() %>">
+                    <% } %>
+                <input type="hidden" id="netPayInput" name="netPay" value="0">
 
-            <%-- Si mode édition, on doit passer l'ID de la fiche de paie --%>
-            <% if (isEditMode) { %>
-            <input type="hidden" name="id_payroll" value="<%= payroll.getId() %>">
-            <% } %>
-
-            <%-- Champ caché pour le NetPay calculé --%>
-            <input type="hidden" id="netPayInput" name="netPay" value="0">
-
-            <h3>Informations Générales</h3>
-            <div class="form-row" style="display: flex; gap: 20px; margin-bottom: 20px;">
-                <div class="form-group" style="flex: 1;">
-                    <label for="id_employee">Employé :</label>
-                    <%if (!isEditMode && user.hasRole(Role.ADMINISTRATOR)) { %>
+                <h3>Informations Générales</h3>
+                <div class="form-row" style="display: flex; gap: 20px; margin-bottom: 20px;">
+                    <div class="form-group" style="flex: 1;">
+                        <label for="id_employee">Employé :</label>
+                        <% if (!isEditMode && isAdmin) { %>
+                        <%-- Select pour l'Admin en mode création --%>
                         <select id="id_employee" name="id_employee" required style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px;">
                             <option value="">-- Sélectionner un employé --</option>
                             <% if (allEmployees != null) {
@@ -85,104 +95,130 @@
                             </option>
                             <%  } } %>
                         </select>
-                    <% } else if(isEditMode) {%>
-                        <% Employee selected = new Employee();
-                            if(allEmployees != null) {
+                        <% } else {
+                            // Affichage pour tous en mode édition, ou pour non-admin en mode création (seul l'utilisateur)
+                            Employee selected = user;
+                            if(isEditMode) {
                                 for (Employee emp : allEmployees) {
-                                    // Pré-sélection si mode édition
                                     if (emp.getId() == payroll.getEmployeeId()) {
                                         selected = emp;
+                                        break;
                                     }
                                 }
                             }
                         %>
-                            <input id="id_employee" name="id_employee" type="hidden"  style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px;" value="<%= selected.getId()%>">
-                                <%= selected.getFname() %> <%= selected.getSname() %>
+                        <% if (isAdmin) { %>
+                        <input id="id_employee" name="id_employee" type="hidden" value="<%= selected.getId()%>">
+                        <% } %>
+                        <span style="display: block; padding: 8px; border: 1px solid #ccc; border-radius: 4px; background: #eee;">
+                            <%= selected.getFname() %> <%= selected.getSname() %>
+                        </span>
+                        <% } %>
+                    </div>
+
+                    <div class="form-group" style="flex: 1;">
+                        <label for="date">Date de la fiche :</label>
+                        <input type="date" id="date" name="date" required
+                               value="<%= isEditMode ? payroll.getDate().toString() : "" %>"
+                            <%= isAdmin ? "" : "readonly" %>
+                               style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                    </div>
+
+                    <div class="form-group" style="flex: 1;">
+                        <label for="salary">Salaire de base (€) :</label>
+                        <input type="number" id="salary" name="salary" min="0" required
+                               value="<%= isEditMode ? payroll.getSalary() : "0" %>"
+                               oninput="calculateTotal()"
+                            <%= isAdmin ? "" : "readonly" %>
+                               style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-weight: bold;">
+                    </div>
+                </div>
+
+                <hr>
+
+                <h3>Détails (Primes & Déductions)</h3>
+                <table class="payroll-grid" id="linesTable">
+                    <thead>
+                    <tr style="background-color: #f1f1f1;">
+                        <th style="width: 40%;">Libellé (Label)</th>
+                        <th style="width: 25%;">Type</th>
+                        <th style="width: 25%;">Montant (€)</th>
+                        <% if (isAdmin) { %>
+                        <th style="width: 10%;">Action</th>
+                        <% } %>
+                    </tr>
+                    </thead>
+                    <tbody id="tableBody">
+                    <%-- BOUCLE JSP POUR AFFICHER LES LIGNES EXISTANTES --%>
+                    <% if (isEditMode && !allLines.isEmpty()) {
+                        for (IntStringPayroll line : allLines) {
+                    %>
+                    <tr>
+                        <td>
+                            <%-- Champ caché ID ligne (pour suppression ou update éventuel) --%>
+                            <input type="hidden" name="id_line_existing" value="<%= line.getId_line() %>">
+                            <input type="text" name="Label" value="<%= line.getLabel() %>" required <%= isAdmin ? "" : "readonly" %>>
+                        </td>
+                        <td>
+                            <select name="Type" onchange="calculateTotal()" <%= isAdmin ? "" : "disabled" %>>
+                                <option value="Prime" <%= "Prime".equals(line.getType()) ? "selected" : "" %>>Prime (+)</option>
+                                <option value="Déduction" <%= "Déduction".equals(line.getType()) ? "selected" : "" %>>Déduction (-)</option>
+                            </select>
+                        </td>
+                        <td>
+                            <input type="number" name="Amount" value="<%= line.getAmount() %>" min="0" oninput="calculateTotal()" required <%= isAdmin ? "" : "readonly" %>>
+                        </td>
+                        <% if (isAdmin) { %>
+                        <td>
+                            <button type="button" class="btn-remove" onclick="removeLine(this)">X</button>
+                        </td>
+                        <% } %>
+                    </tr>
+                    <%
+                            }
+                        }
+                    %>
+                    </tbody>
+                </table>
+
+                    <% if (isAdmin) { %>
+                <button type="button" class="btn-add" onclick="addLine()">+ Ajouter une ligne</button>
+                    <% } %>
+
+                <div style="margin-top: 30px; text-align: right; border-top: 2px solid #ddd; padding-top: 15px;">
+                    <div style="margin-bottom: 10px;">Salaire Base : <span id="displayBase">0.00</span> €</div>
+                    <div style="margin-bottom: 10px; color: green;">Total Primes (+) : <span id="displayPrimes">0.00</span> €</div>
+                    <div style="margin-bottom: 10px; color: red;">Total Déductions (-) : <span id="displayDeductions">0.00</span> €</div>
+                    <div class="total-row" style="font-size: 1.5em; color: #007bff;">
+                        NET À PAYER : <span id="displayNet">0.00</span> €
+                    </div>
+                </div>
+
+                <div style="margin-top: 20px; text-align: center;">
+                    <% if (isAdmin) { %>
+                    <button type="submit" class="add-button" style="cursor: pointer; font-size: 1.1em;">
+                        <%= isEditMode ? "Mettre à jour la Fiche" : "Enregistrer la Fiche" %>
+                    </button>
+                    <% } else if (isEditMode) { %>
+                    <p style="color: #6c757d; font-style: italic; font-weight: bold;">
+                        Ce mode est réservé à la consultation.
+                    </p>
                     <% } %>
                 </div>
 
-                <div class="form-group" style="flex: 1;">
-                    <label for="date">Date de la fiche :</label>
-                    <input type="date" id="date" name="date" required
-                           value="<%= isEditMode ? payroll.getDate().toString() : "" %>"
-                           style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
-                </div>
-
-                <div class="form-group" style="flex: 1;">
-                    <label for="salary">Salaire de base (€) :</label>
-                    <input type="number" id="salary" name="salary" min="0" required
-                           value="<%= isEditMode ? payroll.getSalary() : "0" %>"
-                           oninput="calculateTotal()"
-                           style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-weight: bold;">
-                </div>
-            </div>
-
-            <hr>
-
-            <h3>Détails (Primes & Déductions)</h3>
-            <table class="payroll-grid" id="linesTable">
-                <thead>
-                <tr style="background-color: #f1f1f1;">
-                    <th style="width: 40%;">Libellé (Label)</th>
-                    <th style="width: 25%;">Type</th>
-                    <th style="width: 25%;">Montant (€)</th>
-                    <th style="width: 10%;">Action</th>
-                </tr>
-                </thead>
-                <tbody id="tableBody">
-                <%-- BOUCLE JSP POUR AFFICHER LES LIGNES EXISTANTES --%>
-                <% if (isEditMode && !allLines.isEmpty()) {
-                    for (IntStringPayroll line : allLines) {
-                %>
-                <tr>
-                    <td>
-                        <%-- Champ caché ID ligne (pour suppression ou update éventuel) --%>
-                        <input type="hidden" name="id_line_existing" value="<%= line.getId_line() %>">
-                        <input type="text" name="Label" value="<%= line.getLabel() %>" required>
-                    </td>
-                    <td>
-                        <select name="Type" onchange="calculateTotal()">
-                            <option value="Prime" <%= "Prime".equals(line.getType()) ? "selected" : "" %>>Prime (+)</option>
-                            <option value="Déduction" <%= "Déduction".equals(line.getType()) ? "selected" : "" %>>Déduction (-)</option>
-                        </select>
-                    </td>
-                    <td>
-                        <input type="number" name="Amount" value="<%= line.getAmount() %>" min="0" oninput="calculateTotal()" required>
-                    </td>
-                    <td>
-                        <button type="button" class="btn-remove" onclick="removeLine(this)">X</button>
-                    </td>
-                </tr>
-                <%
-                        }
-                    }
-                %>
-                </tbody>
-            </table>
-
-            <button type="button" class="btn-add" onclick="addLine()">+ Ajouter une ligne</button>
-
-            <div style="margin-top: 30px; text-align: right; border-top: 2px solid #ddd; padding-top: 15px;">
-                <div style="margin-bottom: 10px;">Salaire Base : <span id="displayBase">0.00</span> €</div>
-                <div style="margin-bottom: 10px; color: green;">Total Primes (+) : <span id="displayPrimes">0.00</span> €</div>
-                <div style="margin-bottom: 10px; color: red;">Total Déductions (-) : <span id="displayDeductions">0.00</span> €</div>
-                <div class="total-row" style="font-size: 1.5em; color: #007bff;">
-                    NET À PAYER : <span id="displayNet">0.00</span> €
-                </div>
-            </div>
-
-            <div style="margin-top: 20px; text-align: center;">
-                <button type="submit" class="add-button" style="cursor: pointer; font-size: 1.1em;">
-                    <%= isEditMode ? "Mettre à jour la Fiche" : "Enregistrer la Fiche" %>
-                </button>
-            </div>
+                <%-- Fin du formulaire (ou de la <div> de remplacement) --%>
+                    <% if (isAdmin) { %>
         </form>
+        <% } else { %>
     </div>
+    <% } %>
+</div>
 </div>
 
 <script>
     // Ajout d'une ligne vide (Identique avant)
     function addLine() {
+        // Cette fonction n'est appelée que si isAdmin est vrai (car le bouton est caché sinon)
         const tbody = document.getElementById('tableBody');
         const row = document.createElement('tr');
         row.innerHTML = `
@@ -202,19 +238,29 @@
     }
 
     function removeLine(button) {
+        // Cette fonction n'est appelée que si isAdmin est vrai
         button.closest('tr').remove();
         calculateTotal();
     }
 
     function calculateTotal() {
-        const baseSalary = parseFloat(document.getElementById('salary').value) || 0;
+        const salaryInput = document.getElementById('salary');
+        // Vérification pour s'assurer que l'input existe et qu'il n'est pas désactivé pour éviter les erreurs JS
+        if (!salaryInput) return;
+
+        const baseSalary = parseFloat(salaryInput.value) || 0;
         let totalPrimes = 0;
         let totalDeductions = 0;
 
         document.querySelectorAll('#tableBody tr').forEach(row => {
-            const amount = parseFloat(row.querySelector('input[name="Amount"]').value) || 0;
-            const type = row.querySelector('select[name="Type"]').value;
-            if (type === 'Prime' || type === 'prime') totalPrimes += amount; // Gestion casse au cas où
+            // Pour les non-admins, les selects sont disabled et les inputs readonly, mais on peut quand même lire leurs valeurs
+            const amountInput = row.querySelector('input[name="Amount"]');
+            const typeSelect = row.querySelector('select[name="Type"]');
+
+            const amount = parseFloat(amountInput.value) || 0;
+            const type = typeSelect.value;
+
+            if (type === 'Prime' || type === 'prime') totalPrimes += amount;
             else totalDeductions += amount;
         });
 
@@ -224,18 +270,27 @@
         document.getElementById('displayPrimes').textContent = totalPrimes.toFixed(2);
         document.getElementById('displayDeductions').textContent = totalDeductions.toFixed(2);
         document.getElementById('displayNet').textContent = netPay.toFixed(2);
+
+        // Mise à jour du champ caché NetPay (important pour les Admins)
         document.getElementById('netPayInput').value = netPay.toFixed(2);
     }
 
     // Initialisation
     window.onload = function() {
-        // En mode création, on ajoute une ligne vide.
-        // En mode édition, s'il n'y a pas de lignes, on en ajoute une vide aussi.
         const tbody = document.getElementById('tableBody');
-        if (tbody.children.length === 0) {
+
+        // En mode création, si Admin, on ajoute une ligne vide.
+        // Si la tbody est vide (même en mode édition), on ajoute une ligne (uniquement si Admin, sinon c'est juste la consultation)
+        // Note: La logique de consultation ne devrait pas ajouter de ligne si l'utilisateur normal n'a pas de lignes.
+        // On vérifie isAdmin avant d'appeler addLine.
+
+        const currentIsAdmin = <%= isAdmin %>; // Récupère la valeur JS
+
+        if (currentIsAdmin && tbody.children.length === 0) {
             addLine();
         }
-        // IMPORTANT : Recalculer les totaux immédiatement pour le mode édition
+
+        // IMPORTANT : Recalculer les totaux immédiatement pour le mode édition/consultation
         calculateTotal();
     };
 </script>

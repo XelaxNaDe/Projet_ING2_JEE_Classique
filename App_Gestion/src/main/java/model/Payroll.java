@@ -8,7 +8,7 @@ import java.util.Objects;
 
 public class Payroll {
     private int id;
-    private final Employee employee;
+    private Employee employee;
     private final LocalDate date;
     private final int salary;
     private List<IntStringPayroll> bonusesList = new ArrayList<>();
@@ -76,9 +76,19 @@ public class Payroll {
     }
 
     public void setId(int id) { this.id = id; }
-    public void setBonusesList(List<IntStringPayroll> bonusesList) { this.bonusesList.addAll(bonusesList);  }
-    public void setDeductionsList(List<IntStringPayroll> deductionsList) { this.deductionsList.addAll(deductionsList); }
+    public void setBonusesList(List<IntStringPayroll> bonusesList) {
+        this.bonusesList.clear();
+        this.bonusesList.addAll(bonusesList);
+    }
+    public void setDeductionsList(List<IntStringPayroll> deductionsList) {
+        this.deductionsList.clear();
+        this.deductionsList.addAll(deductionsList);
+    }
     public void setNetPay(double netPay) { this.netPay = netPay; }
+    public void setEmployee(Employee employee) {this.employee = employee; }
+
+    public void addBonusesList(List<IntStringPayroll> bonusesList) { this.bonusesList.addAll(bonusesList);  }
+    public void addDeductionsList(List<IntStringPayroll> deductionsList) { this.deductionsList.addAll(deductionsList); }
 
     public int getId() { return id; }
     public Employee getEmployee() { return employee; }

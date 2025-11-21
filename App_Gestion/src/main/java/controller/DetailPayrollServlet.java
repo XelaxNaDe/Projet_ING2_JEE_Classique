@@ -29,7 +29,7 @@ public class DetailPayrollServlet extends HttpServlet {
         HttpSession session = req.getSession(false);
         Employee user = (session != null) ? (Employee) session.getAttribute("currentUser") : null;
 
-        if (user == null || !user.hasRole(Role.ADMINISTRATOR)) {
+        if (user == null) {
             resp.sendRedirect(req.getContextPath() + "/Connexion.jsp");
             return;
         }

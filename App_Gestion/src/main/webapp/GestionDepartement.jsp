@@ -11,7 +11,7 @@
         return;
     }
 
-    // RÉCUPÉRER LES DEUX LISTES DEPUIS LA SERVLET
+    // RÉCUPÉRER LES DEUX LISTES DEPUIS LA SERVLETf
     List<Departement> departements = (List<Departement>) request.getAttribute("listeDepartements");
     List<Employee> allEmployees = (List<Employee>) request.getAttribute("allEmployees");
 

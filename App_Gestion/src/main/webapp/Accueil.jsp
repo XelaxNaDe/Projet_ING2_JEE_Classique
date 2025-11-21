@@ -32,7 +32,7 @@
         <a href="${pageContext.request.contextPath}/departements" class="nav-button admin-btn">Départements</a>
         <a href="${pageContext.request.contextPath}/projets" class="nav-button admin-btn">Projets</a>
         <a href="${pageContext.request.contextPath}/employes" class="nav-button admin-btn">Employés</a>
-        <a href="#" class="nav-button">Mes fiches de paye</a>
+        <a href="${pageContext.request.contextPath}/payroll" class="nav-button">Mes fiches de paye</a>
 
         <a href="Connexion.jsp" class="nav-button logout">Déconnexion</a>
     </div>

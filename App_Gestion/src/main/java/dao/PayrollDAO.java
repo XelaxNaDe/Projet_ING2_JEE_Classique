@@ -13,172 +13,272 @@ public class PayrollDAO {
 
     // --- 1. MÉTHODES DE CONNEXION / RÉCUPÉRATION (GET) ---
 
-    /**
-     * Récupère toutes les listes de primes ou déductions associées à une fiche de paie
-     */
-    public List<IntStringPayroll> getAllPayrollsDetails(int payroll, String type){
+    public List<IntStringPayroll> getAllPayrollsDetails(int payrollId, String type){
         List<IntStringPayroll> detailspayrolls = new ArrayList<>();
-
-        // REQUÊTE SIMPLIFIÉE : On prend juste tous les dé dans la table Payroll
-        String sql = "SELECT * FROM Intstringpayroll WHERE id_payroll = ? AND type = ";
+        String sql = "SELECT * FROM IntStringPayroll WHERE id_payroll = ? AND type_list = ?";
 
         try (Connection conn = DatabaseManager.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
 
-            ps.setInt(1, payroll);
+            ps.setInt(1, payrollId);
             ps.setString(2, type);
 
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
-                    int id_line = rs.getInt("id_line");
-                    int id_payroll = rs.getInt("id_payroll");
-                    int amount = rs.getInt("amount");
-                    String label = rs.getString("label");
-                    String typeList = rs.getString("type_list");
-
-                    IntStringPayroll payrollLine = new IntStringPayroll(id_line, id_payroll, amount, label, typeList);
-                    detailspayrolls.add(payrollLine);
+                    detailspayrolls.add(new IntStringPayroll(
+                            rs.getInt("id_line"),
+                            rs.getInt("id_payroll"),
+                            rs.getInt("amount"),
+                            rs.getString("label"),
+                            rs.getString("type_list")
+                    ));
                 }
             }
         } catch (SQLException e) {
-            throw new RuntimeException(e);
+            throw new RuntimeException("Erreur lors de la récupération des détails de paie.", e);
         }
-        // Si ça plante ici (par ex. "Unknown column 'id_chef_projet'"),
-        // l'erreur sera attrapée par la servlet.
         return detailspayrolls;
     }
 
+    /**
+     * CORRECTION MAJEURE: Utilisation d'un JOIN SQL pour éviter de fermer la connexion
+     * en appelant EmployeeDAO dans la boucle.
+     */
     public List<Payroll> getAllPayrolls() throws SQLException {
         List<Payroll> payrolls = new ArrayList<>();
 
-        // REQUÊTE SIMPLIFIÉE : On prend juste tout dans la table Payroll
-        String sql = "SELECT * FROM Payroll";
+        // On joint Payroll et Employee pour tout récupérer en une seule requête
+        String sql = "SELECT p.*, e.fname, e.sname, e.gender, e.email, e.password, " +
+                "e.position, e.grade, e.id_departement " +
+                "FROM Payroll p " +
+                "JOIN Employee e ON p.id = e.id " + // p.id est la FK vers Employee
+                "ORDER BY p.date DESC";
 
         try (Connection conn = DatabaseManager.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
 
             while (rs.next()) {
-                int id = rs.getInt("id_payroll");
-                int id_employe = rs.getInt("id");
-                LocalDate date = rs.getDate("date").toLocalDate();
-                int salary = rs.getInt("salary");
-                double netPay = rs.getDouble("netPay");
-                List<IntStringPayroll> bonusesList = getAllPayrollsDetails(id, "Prime");
-                List<IntStringPayroll> deductionsList = getAllPayrollsDetails(id, "Déduction");
-                EmployeeDAO employeeDAO = new EmployeeDAO();
-                Employee e = employeeDAO.findEmployeeById(id_employe);
+                // 1. Reconstruire l'objet Employee manuellement depuis le ResultSet courant
+                Employee emp = mapEmployeeFromResultSet(rs, rs.getInt("id")); // "id" dans Payroll est l'ID employé
 
-                Payroll payroll = new Payroll(id, e, date, salary, netPay, bonusesList, deductionsList);
+                // 2. Créer l'objet Payroll
+                Payroll payroll = new Payroll(
+                        rs.getInt("id_payroll"),
+                        emp,
+                        rs.getDate("date").toLocalDate(),
+                        rs.getInt("salary"),
+                        rs.getDouble("netPay")
+                );
                 payrolls.add(payroll);
             }
         }
-        // Si ça plante ici (par ex. "Unknown column 'salary'"),
-        // l'erreur sera attrapée par la servlet.
+
+        // 3. Charger les détails (Primes/Déductions) APRÈS avoir fermé la connexion principale
+        populatePayrollDetails(payrolls);
+
         return payrolls;
     }
 
-    /**
-     * Tente de trouver une fiche de paie en fonction de l'employé par email et mot de passe (pour le login).
-     */
-    public ArrayList<Payroll> findPayrollByEmployee(Employee e) throws SQLException {
-        String sqlEmployee = "SELECT * FROM Payroll WHERE id = ?";
+    public Payroll findPayrollById(int idPayroll) throws SQLException {
+        String sql = "SELECT p.*, e.fname, e.sname, e.gender, e.email, e.password, " +
+                "e.position, e.grade, e.id_departement " +
+                "FROM Payroll p " +
+                "JOIN Employee e ON p.id = e.id " +
+                "WHERE p.id_payroll = ?";
+
+        Payroll payroll = null;
+
+        try (Connection conn = DatabaseManager.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, idPayroll);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    Employee emp = mapEmployeeFromResultSet(rs, rs.getInt("id"));
+
+                    payroll = new Payroll(
+                            rs.getInt("id_payroll"),
+                            emp,
+                            rs.getDate("date").toLocalDate(),
+                            rs.getInt("salary"),
+                            rs.getDouble("netPay")
+                    );
+                }
+            }
+        }
+
+        // Si trouvé, on charge les détails (nouvelle connexion gérée par la méthode)
+        if (payroll != null) {
+            payroll.setBonusesList(getAllPayrollsDetails(payroll.getId(), "Prime"));
+            payroll.setDeductionsList(getAllPayrollsDetails(payroll.getId(), "Déduction"));
+        }
+
+        return payroll;
+    }
+
+    public ArrayList<Payroll> findPayrollByEmployee(int employeeId) throws SQLException {
+        String sql = "SELECT p.*, e.fname, e.sname, e.gender, e.email, e.password, " +
+                "e.position, e.grade, e.id_departement " +
+                "FROM Payroll p " +
+                "JOIN Employee e ON p.id = e.id " +
+                "WHERE p.id = ?";
+
         ArrayList<Payroll> payrolls = new ArrayList<>();
 
         try (Connection conn = DatabaseManager.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sqlEmployee)) {
-            ps.setInt(1, e.getId());
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, employeeId);
+
             try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
+                while (rs.next()) {
+                    Employee emp = mapEmployeeFromResultSet(rs, employeeId);
+
                     payrolls.add(new Payroll(
                             rs.getInt("id_payroll"),
-                            e,
+                            emp,
                             rs.getDate("date").toLocalDate(),
                             rs.getInt("salary"),
-                            rs.getDouble("netPay"),
-                            getAllPayrollsDetails(rs.getInt("id_payroll"), "Prime"),
-                            getAllPayrollsDetails(rs.getInt("id_payroll"), "Déduction")
+                            rs.getDouble("netPay")
                     ));
                 }
             }
         }
+
+        populatePayrollDetails(payrolls);
         return payrolls;
     }
 
     /**
-     * Tente de trouver une fiche de paie en fonction de l'employé par email et mot de passe (pour le login).
+     * Recherche avancée multi-critères
      */
-    public ArrayList<Payroll> findPayrollByPeriod(LocalDate debut, LocalDate fin) throws SQLException {
-        String sqlEmployee = "SELECT * FROM Payroll WHERE `date` BETWEEN ? AND ?";
-        ArrayList<Payroll> payrolls = new ArrayList<>();
+    public List<Payroll> searchPayrolls(String empIdStr, String dateDebutStr, String dateFinStr) throws SQLException {
+        List<Payroll> payrolls = new ArrayList<>();
+        StringBuilder sql = new StringBuilder(
+                "SELECT p.*, e.fname, e.sname, e.gender, e.email, e.password, " +
+                        "e.position, e.grade, e.id_departement " +
+                        "FROM Payroll p " +
+                        "JOIN Employee e ON p.id = e.id " +
+                        "WHERE 1=1 "); // 1=1 permet d'ajouter des AND dynamiquement
+
+        List<Object> params = new ArrayList<>();
+
+        // Filtre par Employé
+        if (empIdStr != null && !empIdStr.isEmpty()) {
+            sql.append("AND p.id = ? ");
+            params.add(Integer.parseInt(empIdStr));
+        }
+
+        // Filtre par Date de début
+        if (dateDebutStr != null && !dateDebutStr.isEmpty()) {
+            sql.append("AND p.date >= ? ");
+            params.add(Date.valueOf(dateDebutStr));
+        }
+
+        // Filtre par Date de fin
+        if (dateFinStr != null && !dateFinStr.isEmpty()) {
+            sql.append("AND p.date <= ? ");
+            params.add(Date.valueOf(dateFinStr));
+        }
+
+        sql.append("ORDER BY p.date DESC");
 
         try (Connection conn = DatabaseManager.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sqlEmployee)) {
+             PreparedStatement ps = conn.prepareStatement(sql.toString())) {
 
-            ps.setDate(1, Date.valueOf(debut));
-            ps.setDate(2, Date.valueOf(fin));
+            // Remplissage des paramètres
+            for (int i = 0; i < params.size(); i++) {
+                ps.setObject(i + 1, params.get(i));
+            }
 
-            EmployeeDAO e = new EmployeeDAO();
             try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    payrolls.add(new Payroll(
+                while (rs.next()) {
+                    Employee emp = mapEmployeeFromResultSet(rs, rs.getInt("id"));
+                    Payroll payroll = new Payroll(
                             rs.getInt("id_payroll"),
-                            e.findEmployeeById(rs.getInt("id")),
+                            emp,
                             rs.getDate("date").toLocalDate(),
                             rs.getInt("salary"),
-                            rs.getDouble("netPay"),
-                            getAllPayrollsDetails(rs.getInt("id_payroll"), "Prime"),
-                            getAllPayrollsDetails(rs.getInt("id_payroll"), "Déduction")
-                    ));
+                            rs.getDouble("netPay")
+                    );
+                    payrolls.add(payroll);
                 }
             }
         }
+
+        // Charger les détails (Primes/Déductions)
+        populatePayrollDetails(payrolls);
+
         return payrolls;
     }
 
+    // --- HELPER METHODS (Pour éviter la duplication de code) ---
+
     /**
-     * Crée une nouvelle ligne de prime ou déduction fiche de paie.
+     * Reconstruit un objet Employee à partir du ResultSet courant (grâce au JOIN).
      */
-    public void createPayrollLine(IntStringPayroll payLine) throws SQLException {
-        String sql = "INSERT INTO Payroll (id_payroll, amount, label, type_list) " +
-                "VALUES (?, ?, ?, ?)";
+    private Employee mapEmployeeFromResultSet(ResultSet rs, int empId) throws SQLException {
+        Employee emp = new Employee(
+                rs.getString("fname"),
+                rs.getString("sname"),
+                rs.getString("gender"),
+                rs.getString("email"),
+                rs.getString("password"),
+                rs.getString("position"),
+                rs.getString("grade"),
+                rs.getInt("id_departement")
+        );
+        emp.setId(empId);
+        return emp;
+    }
+
+    /**
+     * Parcourt une liste de Payrolls et remplit les primes/déductions.
+     * Cette méthode ouvre et ferme ses propres connexions proprement.
+     */
+    private void populatePayrollDetails(List<Payroll> payrolls) {
+        for (Payroll p : payrolls) {
+            // Note: getAllPayrollsDetails gère sa propre connexion (Open/Close)
+            // Comme nous ne sommes plus dans un ResultSet ouvert, c'est sécurisé.
+            p.setBonusesList(getAllPayrollsDetails(p.getId(), "Prime"));
+            p.setDeductionsList(getAllPayrollsDetails(p.getId(), "Déduction"));
+        }
+    }
+
+    // --- 2. MÉTHODES DE MODIFICATION (CREATE, UPDATE, DELETE) ---
+    // Ces méthodes ne changeaient pas, mais sont incluses pour garder la classe complète.
+
+    public int createPayrollLine(int idPay, int amount, String label, String type) throws SQLException {
+        String sql = "INSERT INTO IntStringPayroll (id_payroll, amount, label, type_list) VALUES (?, ?, ?, ?)";
+        int newId = 0;
+        try (Connection conn = DatabaseManager.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+            ps.setInt(1, idPay);
+            ps.setInt(2, amount);
+            ps.setString(3, label);
+            ps.setString(4, type);
+            ps.executeUpdate();
+            try (ResultSet rs = ps.getGeneratedKeys()) {
+                if (rs.next()) newId = rs.getInt(1);
+            }
+        }
+        return newId;
+    }
+
+    public void updatePayrollLine(int idLine, int amount, String label, String type) throws SQLException {
+        String sql = "UPDATE IntStringPayroll SET amount = ?, label = ?, type_list = ? WHERE id_line = ?";
         try (Connection conn = DatabaseManager.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-
-            ps.setInt(1, payLine.getId_payroll());
-            ps.setInt(2, payLine.getAmount());
-            ps.setString(3, payLine.getLabel());
-            ps.setString(4, payLine.getType());
-
+            ps.setInt(1, amount);
+            ps.setString(2, label);
+            ps.setString(3, type);
+            ps.setInt(4, idLine);
             ps.executeUpdate();
         }
     }
 
-    /**
-     * Met à jour une ligne de prime ou déduction fiche de paie.
-     */
-    public void updatePayrollLine(IntStringPayroll payLine) throws SQLException {
-        String sql = "UPDATE Payroll SET id_payroll = ?, amount = ?, label = ?,type_list = ? " +
-                        "WHERE id_line = ?";
-
-        try (Connection conn = DatabaseManager.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-
-            ps.setInt(1, payLine.getId_payroll());
-            ps.setInt(2, payLine.getAmount());
-            ps.setString(3, payLine.getLabel());
-            ps.setString(4, payLine.getType());
-            ps.setInt(5, payLine.getId_line()); // ID pour le WHERE
-
-            ps.executeUpdate();
-        }
-    }
-
-    /**
-     * Supprime une ligne de prime ou déduction fiche de paie.
-     */
     public void deletePayrollLine(int id) throws SQLException {
-        String sql = "DELETE FROM Payroll WHERE id_line = ?";
+        String sql = "DELETE FROM IntStringPayroll WHERE id_line = ?";
         try (Connection conn = DatabaseManager.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, id);
@@ -187,50 +287,84 @@ public class PayrollDAO {
     }
 
     /**
-     * Crée une nouvelle fiche de paie.
+     * Crée une nouvelle fiche de paie avec le NetPay directement inclus.
      */
-    public void createPayroll(Payroll pay) throws SQLException {
-        String sql = "INSERT INTO Payroll (id, `date`, salary, netPay) " +
-                "VALUES (?, ?, ?, ?)";
+    public int createPayroll(int idEmployee, Date date, int salaire, double netPay) throws SQLException {
+        // MODIFICATION : Ajout de la colonne netPay dans l'INSERT
+        String sql = "INSERT INTO Payroll (id, `date`, salary, netPay) VALUES (?, ?, ?, ?)";
+        int newId = 0;
+
         try (Connection conn = DatabaseManager.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+             PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
 
-            ps.setInt(1, pay.getEmployeeId());
-            ps.setDate(2, Date.valueOf(pay.getDate()));
-            ps.setInt(3, pay.getSalary());
-            ps.setDouble(4, pay.getNetPay());
+            ps.setInt(1, idEmployee);
+            ps.setDate(2, date);
+            ps.setInt(3, salaire);
+            ps.setDouble(4, netPay); // Insertion de la valeur reçue depuis le JSP
 
+            ps.executeUpdate();
+
+            // Récupérer l'ID généré
+            try (ResultSet rs = ps.getGeneratedKeys()) {
+                if (rs.next()) {
+                    newId = rs.getInt(1);
+                }
+            }
+        }
+        return newId;
+    }
+
+    public void createPayrollNetPay(int idPayroll, int salary) throws SQLException {
+        // Logique optimisée : lecture et mise à jour séparées ou via une procédure,
+        // mais ici on garde la logique simple : récupération puis mise à jour.
+
+        int bonus = 0;
+        int deductions = 0;
+
+        // Étape 1: Calculer
+        String selectSql = "SELECT amount, type_list FROM IntStringPayroll WHERE id_payroll = ?";
+        try (Connection conn = DatabaseManager.getConnection();
+             PreparedStatement ps = conn.prepareStatement(selectSql)) {
+            ps.setInt(1, idPayroll);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    if ("Prime".equals(rs.getString("type_list"))) {
+                        bonus += rs.getInt("amount");
+                    } else if ("Déduction".equals(rs.getString("type_list"))) {
+                        deductions += rs.getInt("amount");
+                    }
+                }
+            }
+        }
+
+        // Étape 2: Mise à jour
+        double netPay = (double) salary + bonus - deductions;
+        String updateSql = "UPDATE Payroll SET netPay = ? WHERE id_payroll = ?";
+        try (Connection conn = DatabaseManager.getConnection();
+             PreparedStatement ps = conn.prepareStatement(updateSql)) {
+            ps.setDouble(1, netPay);
+            ps.setInt(2, idPayroll);
             ps.executeUpdate();
         }
     }
 
-    /**
-     * Met à jour une fiche de paie.
-     */
     public void updatePayroll(Payroll pay) throws SQLException {
-        String sql = "UPDATE Payroll SET id = ?, `date` = ?, salary = ?," +
-                        "netPay = ? WHERE id_payroll = ?";
-
+        String sql = "UPDATE Payroll SET id = ?, `date` = ?, salary = ?, netPay = ? WHERE id_payroll = ?";
         try (Connection conn = DatabaseManager.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-
             ps.setInt(1, pay.getEmployeeId());
             ps.setDate(2, Date.valueOf(pay.getDate()));
             ps.setInt(3, pay.getSalary());
             ps.setDouble(4, pay.getNetPay());
-            ps.setInt(5, pay.getId()); // ID pour le WHERE
-
+            ps.setInt(5, pay.getId());
             ps.executeUpdate();
         }
     }
 
-    /**
-     * Supprime une fiche de paie.
-     */
     public void deletePayroll(int id) throws SQLException {
-        String sql = "DELETE FROM Payroll WHERE id_payroll = ?";
+        String sqlPayroll = "DELETE FROM Payroll WHERE id_payroll = ?";
         try (Connection conn = DatabaseManager.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+             PreparedStatement ps = conn.prepareStatement(sqlPayroll)) {
             ps.setInt(1, id);
             ps.executeUpdate();
         }

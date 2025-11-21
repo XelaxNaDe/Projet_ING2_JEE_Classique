@@ -15,6 +15,23 @@ public class Payroll {
     private List<IntStringPayroll> deductionsList = new ArrayList<>();
     private double netPay;
 
+    public Payroll() {
+        id =0;
+        employee = null;
+        date = null;
+        salary = 0;
+    }
+
+
+
+    public Payroll(int id, Employee employee, LocalDate date, int salary, double netPay) {
+        this.id = id;
+        this.employee = employee;
+        this.date = date;
+        this.salary = salary;
+        this.netPay = netPay;
+    }
+
     public Payroll(int id, Employee employee, LocalDate date, int salary, double netPay, List<IntStringPayroll> bonusesL, List<IntStringPayroll> deductionsL) {
         this.id = id;
         this.employee = employee;

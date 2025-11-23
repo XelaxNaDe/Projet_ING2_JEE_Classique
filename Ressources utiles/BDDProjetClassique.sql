@@ -155,7 +155,7 @@ SET @id_payroll_jan = (SELECT id_payroll FROM Payroll WHERE id = @id_pierre AND 
 SET @id_payroll_feb = (SELECT id_payroll FROM Payroll WHERE id = @id_pierre AND date = '2024-02-29');
 
 INSERT INTO IntStringPayroll (id_payroll, amount, label, type_list) VALUES
-(@id_payroll_jan, 200, 'Prime Performance', 'BONUS'),
+(@id_payroll_jan, 200, 'Prime Performance', 'PRIME'),
 (@id_payroll_jan, 50, 'Tickets Restaurant', 'DEDUCTION');
 
 INSERT INTO IntStringPayroll (id_payroll, amount, label, type_list) VALUES

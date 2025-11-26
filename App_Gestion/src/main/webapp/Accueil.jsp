@@ -8,6 +8,8 @@
         response.sendRedirect("Connexion.jsp");
         return;
     }
+    // Vérification du rôle Admin pour afficher le bouton Stats
+    boolean isAdmin = user.hasRole(RoleEnum.ADMINISTRATOR);
 %>
 
 <html>
@@ -34,7 +36,13 @@
         <a href="${pageContext.request.contextPath}/employes" class="nav-button admin-btn">Employés</a>
         <a href="${pageContext.request.contextPath}/payroll" class="nav-button">Mes fiches de paye</a>
 
-        <a href="Connexion.jsp" class="nav-button logout">Déconnexion</a>
+        <% if (isAdmin) { %>
+        <a href="${pageContext.request.contextPath}/stats" class="nav-button admin-btn" target="_blank" style="background-color: #6f42c1;">
+            Générer le Rapport Statistiques
+        </a>
+        <% } %>
+
+        <a href="${pageContext.request.contextPath}/logout" class="nav-button logout">Déconnexion</a>
     </div>
 </div>
 

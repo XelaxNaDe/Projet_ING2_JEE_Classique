@@ -29,6 +29,13 @@ public class IntStringPayroll {
     // Constructeur vide (Obligatoire Hibernate)
     public IntStringPayroll() {}
 
+    // Constructeur pour la Servlet (avant d'attacher au Payroll)
+    public IntStringPayroll(int amount, String label, String type) {
+        this.amount = amount;
+        this.label = label;
+        this.type = type;
+    }
+
     public IntStringPayroll(int amount, String label, String type, Payroll payroll) {
         this.amount = amount;
         this.label = label;
@@ -37,8 +44,11 @@ public class IntStringPayroll {
     }
 
     // Getters et Setters
-    public int getIdLine() { return idLine; }
+    public int getIdLine() { return idLine; } // Changé de getId_line à getIdLine pour convention camelCase
     public void setIdLine(int idLine) { this.idLine = idLine; }
+
+    // Alias pour compatibilité JSP si nécessaire
+    public int getId_line() { return idLine; }
 
     public int getAmount() { return amount; }
     public void setAmount(int amount) { this.amount = amount; }
@@ -51,4 +61,8 @@ public class IntStringPayroll {
 
     public Payroll getPayroll() { return payroll; }
     public void setPayroll(Payroll payroll) { this.payroll = payroll; }
+
+    public int getId_payroll() {
+        return (payroll != null) ? payroll.getId() : 0;
+    }
 }

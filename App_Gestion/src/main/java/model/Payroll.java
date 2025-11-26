@@ -1,101 +1,94 @@
 package model;
 
+import jakarta.persistence.*;
 import model.utils.IntStringPayroll;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
+@Entity
+@Table(name = "Payroll")
 public class Payroll {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id_payroll")
     private int id;
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "id") // FK vers Employee
     private Employee employee;
-    private final LocalDate date;
-    private final int salary;
-    private List<IntStringPayroll> bonusesList = new ArrayList<>();
-    private List<IntStringPayroll> deductionsList = new ArrayList<>();
+
+    @Column(name = "date")
+    private LocalDate date;
+
+    @Column(name = "salary")
+    private int salary;
+
+    @Column(name = "netPay")
     private double netPay;
 
-    public Payroll() {
-        id =0;
-        employee = null;
-        date = null;
-        salary = 0;
-    }
+    // Hibernate gère TOUTES les lignes ici (Primes ET Déductions mélangées)
+    @OneToMany(mappedBy = "payroll", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    private List<IntStringPayroll> allDetails = new ArrayList<>();
 
+    public Payroll() {}
 
-
-    public Payroll(int id, Employee employee, LocalDate date, int salary, double netPay) {
-        this.id = id;
+    public Payroll(Employee employee, LocalDate date, int salary, double netPay) {
         this.employee = employee;
         this.date = date;
         this.salary = salary;
         this.netPay = netPay;
     }
 
-    public Payroll(int id, Employee employee, LocalDate date, int salary, double netPay, List<IntStringPayroll> bonusesL, List<IntStringPayroll> deductionsL) {
-        this.id = id;
-        this.employee = employee;
-        this.date = date;
-        this.salary = salary;
-        this.netPay = netPay;
+    // --- Méthodes de compatibilité pour la JSP ---
+    // Ces méthodes filtrent la liste unique 'allDetails' à la volée
 
-        if (Objects.nonNull(bonusesL)) {
-            this.bonusesList.addAll(bonusesL);
-        }
-        if (Objects.nonNull(deductionsL)) {
-            this.deductionsList.addAll(deductionsL);
-        }
+    public List<IntStringPayroll> getBonusesList() {
+        if (allDetails == null) return new ArrayList<>();
+        return allDetails.stream()
+                .filter(line -> "Prime".equalsIgnoreCase(line.getType()))
+                .collect(Collectors.toList());
     }
 
-    public Payroll(int id, Employee employee, LocalDate date, int salary, List<IntStringPayroll> bonusesL, List<IntStringPayroll> deductionsL) {
-        this.id = id;
-        this.employee = employee;
-        this.date = date;
-        this.salary = salary;
-
-        if (Objects.nonNull(bonusesL)) {
-            this.bonusesList.addAll(bonusesL);
-        }
-        if (Objects.nonNull(deductionsL)) {
-            this.deductionsList.addAll(deductionsL);
-        }
-
-        this.calculateNetPay();
+    public List<IntStringPayroll> getDeductionsList() {
+        if (allDetails == null) return new ArrayList<>();
+        return allDetails.stream()
+                .filter(line -> "Déduction".equalsIgnoreCase(line.getType()))
+                .collect(Collectors.toList());
     }
 
-    private void calculateNetPay() {
-        double sum = salary;
-
-        for (IntStringPayroll bonus : bonusesList) {
-            sum = sum + bonus.getAmount();
-        }
-        for (IntStringPayroll deduction : deductionsList) {
-            sum = sum - deduction.getAmount();
-        }
-        this.netPay = sum;
+    // Méthode pour ajouter une ligne (gère la relation bidirectionnelle)
+    public void addDetail(IntStringPayroll detail) {
+        detail.setPayroll(this); // Important pour Hibernate
+        this.allDetails.add(detail);
     }
 
-    public void setId(int id) { this.id = id; }
-    public void setBonusesList(List<IntStringPayroll> bonusesList) {
-        this.bonusesList.clear();
-        this.bonusesList.addAll(bonusesList);
+    public void clearDetails() {
+        this.allDetails.clear();
     }
-    public void setDeductionsList(List<IntStringPayroll> deductionsList) {
-        this.deductionsList.clear();
-        this.deductionsList.addAll(deductionsList);
-    }
-    public void setNetPay(double netPay) { this.netPay = netPay; }
-    public void setEmployee(Employee employee) {this.employee = employee; }
 
-    public void addBonusesList(List<IntStringPayroll> bonusesList) { this.bonusesList.addAll(bonusesList);  }
-    public void addDeductionsList(List<IntStringPayroll> deductionsList) { this.deductionsList.addAll(deductionsList); }
-
+    // Getters & Setters standards
     public int getId() { return id; }
+    public void setId(int id) { this.id = id; }
+
     public Employee getEmployee() { return employee; }
-    public int getEmployeeId() { return employee.getId(); }
+    public void setEmployee(Employee employee) { this.employee = employee; }
+
+    // Helper pour compatibilité
+    public int getEmployeeId() { return (employee != null) ? employee.getId() : 0; }
+
     public LocalDate getDate() { return date; }
+    public void setDate(LocalDate date) { this.date = date; }
+
     public int getSalary() { return salary; }
-    public List<IntStringPayroll> getBonusesList() { return bonusesList; }
-    public List<IntStringPayroll> getDeductionsList() { return deductionsList; }
+    public void setSalary(int salary) { this.salary = salary; }
+
     public double getNetPay() { return netPay; }
+    public void setNetPay(double netPay) { this.netPay = netPay; }
+
+    public List<IntStringPayroll> getAllDetails() { return allDetails; }
+    public void setAllDetails(List<IntStringPayroll> allDetails) { this.allDetails = allDetails; }
 }

@@ -15,7 +15,7 @@ public class Departement {
     private String nomDepartement;
 
     // RELATION : Au lieu d'un int, on met l'Objet Employee
-    @OneToOne(fetch = FetchType.LAZY)
+    @OneToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "id_chef_departement") // La colonne FK dans la table Departement
     private Employee chefDepartement;
 

@@ -1,10 +1,10 @@
 <%@ page import="model.Employee" %>
 <%@ page import="model.Payroll" %>
-<%@ page import="model.utils.Role" %>
 <%@ page import="java.util.List" %>
 <%@ page import="java.time.format.DateTimeFormatter" %>
 <%@ page import="java.util.Locale" %>
 <%@ page import="java.text.NumberFormat" %>
+<%@ page import="model.utils.RoleEnum" %>
 <%@ page contentType="text/html;charset=UTF-8" language="java" %>
 
 <%
@@ -15,27 +15,31 @@
         return;
     }
 
-    boolean isAdmin = user.hasRole(Role.ADMINISTRATOR);
+    boolean isAdmin = user.hasRole(RoleEnum.ADMINISTRATOR);
+
     // Récupération des données passées par le Servlet
     List<Payroll> listePayrolls = (List<Payroll>) request.getAttribute("listePayrolls");
     List<Employee> allEmployees = (List<Employee>) request.getAttribute("allEmployees");
 
-    // Gestion des messages (stockés en session ou requête)
+    // Gestion des messages
     String errorMessage = (String) session.getAttribute("errorMessage");
     session.removeAttribute("errorMessage");
     String successMessage = (String) session.getAttribute("successMessage");
     session.removeAttribute("successMessage");
     String reqError = (String) request.getAttribute("errorMessage");
 
-    // Récupérer les paramètres de recherche pour les conserver dans le formulaire
+    // --- CORRECTION : Déclaration des variables manquantes ---
+
+    // 1. Récupération des paramètres de recherche
     String searchEmployeeId = request.getParameter("search_employee");
-    String searchDateDebut = request.getParameter("date_debut");
-    String searchDateFin = request.getParameter("date_fin");
+    // C'est cette ligne qui manquait pour l'erreur "searchMonth cannot be resolved"
+    String searchMonth = request.getParameter("search_month");
 
-    // Formatter pour l'affichage de la date
-    DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy", Locale.FRANCE);
+    // 2. Déclaration du Formatter de date
+    // C'est cette ligne qui manquait pour l'erreur "monthYearFormatter cannot be resolved"
+    DateTimeFormatter monthYearFormatter = DateTimeFormatter.ofPattern("MMMM yyyy", Locale.FRANCE);
 
-    // Formatter pour la monnaie (Euro, France)
+    // 3. Formatter pour la monnaie
     NumberFormat currencyFormatter = NumberFormat.getCurrencyInstance(Locale.FRANCE);
     currencyFormatter.setMaximumFractionDigits(2);
     currencyFormatter.setMinimumFractionDigits(2);
@@ -63,7 +67,7 @@
         .filter-form .form-group { flex: 1; min-width: 150px; }
         .filter-form label { font-weight: bold; display: block; margin-bottom: 5px; }
         .filter-form input[type="text"],
-        .filter-form input[type="date"],
+        .filter-form input[type="month"], /* Changé de date à month */
         .filter-form select {
             width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;
         }
@@ -72,10 +76,7 @@
             border: none; border-radius: 4px; cursor: pointer; height: 38px;
         }
 
-        .admin-controls {
-            display: flex; flex-direction: column;
-            align-items: flex-start; gap: 5px;
-        }
+        .admin-controls { display: flex; flex-direction: column; align-items: flex-start; gap: 5px; }
         .admin-controls form { display: inline; margin: 0; }
         .admin-controls button {
             color: red; border: none; background: none; cursor: pointer; padding: 0;
@@ -116,7 +117,6 @@
 <div class="container">
     <h1>Gérer les Fiches de Paie</h1>
 
-    <%-- Affichage des messages --%>
     <% if (reqError != null) { %> <div class="msg-error"><%= reqError %></div> <% } %>
     <% if (errorMessage != null) { %> <div class="msg-error"><%= errorMessage %></div> <% } %>
     <% if (successMessage != null) { %> <div class="msg-success"><%= successMessage %></div> <% } %>
@@ -126,59 +126,48 @@
     <% } %>
 
     <div class="filter-form">
-        <h3>Rechercher les fiches de paie</h3>
+        <h3>Rechercher</h3>
         <form action="${pageContext.request.contextPath}/payroll" method="get">
             <div class="form-row">
                 <div class="form-group">
                     <label for="search_employee">Employé:</label>
                     <% if (isAdmin) { %>
-                    <%-- AFFICHAGE POUR L'ADMIN : Menu déroulant pour tous les employés --%>
                     <select id="search_employee" name="search_employee">
                         <option value="">Tous les employés</option>
-                        <%
-                            if (allEmployees != null) {
-                                for (Employee emp : allEmployees) {
-                                    String selected = (searchEmployeeId != null && searchEmployeeId.equals(String.valueOf(emp.getId()))) ? "selected" : "";
+                        <% if (allEmployees != null) { for (Employee emp : allEmployees) {
+                            String selected = (searchEmployeeId != null && searchEmployeeId.equals(String.valueOf(emp.getId()))) ? "selected" : "";
                         %>
                         <option value="<%= emp.getId() %>" <%= selected %>><%= emp.getFname() %> <%= emp.getSname() %></option>
-                        <%      }
-                        }
-                        %>
+                        <% } } %>
                     </select>
                     <% } else { %>
-                    <%-- AFFICHAGE POUR L'EMPLOYÉ : Son nom en lecture seule --%>
                     <input type="hidden" name="search_employee" value="<%= user.getId() %>">
-                    <span style="display: block; padding: 8px; border: 1px solid #ccc; border-radius: 4px; background: #eee;">
-                            <%= user.getFname() %> <%= user.getSname() %> (Vous)
-                        </span>
+                    <span style="display: block; padding: 8px; border: 1px solid #ccc; background: #eee;">
+                        <%= user.getFname() %> <%= user.getSname() %> (Vous)
+                    </span>
                     <% } %>
                 </div>
+
+                <%-- NOUVEAU FILTRE : MOIS --%>
                 <div class="form-group">
-                    <label for="date_debut">Date début:</label>
-                    <input type="date" id="date_debut" name="date_debut" value="<%= (searchDateDebut != null) ? searchDateDebut : "" %>">
+                    <label for="search_month">Mois / Année :</label>
+                    <%-- Ici, la variable searchMonth est maintenant bien définie en haut --%>
+                    <input type="month" id="search_month" name="search_month" value="<%= (searchMonth != null) ? searchMonth : "" %>">
                 </div>
-                <div class="form-group">
-                    <label for="date_fin">Date fin:</label>
-                    <input type="date" id="date_fin" name="date_fin" value="<%= (searchDateFin != null) ? searchDateFin : "" %>">
-                </div>
-                <button type="submit">Rechercher / Filtrer</button>
+
+                <button type="submit">Filtrer</button>
             </div>
-            <% if (!isAdmin) { %>
-            <p style="margin-top: 10px; color: #6c757d; font-style: italic;">
-                Filtre restreint à vos propres fiches de paie.
-            </p>
-            <% } %>
         </form>
     </div>
 
     <div class="data-table">
-        <h3>Fiches de Paie</h3>
+        <h3>Historique des Paies</h3>
         <table>
             <thead>
             <tr>
-                <th>ID Fiche</th>
+                <th>ID</th>
                 <% if (isAdmin) { %><th>Employé</th><% } %>
-                <th>Date</th>
+                <th>Période</th>
                 <th>Salaire Brut</th>
                 <th>Net à Payer</th>
                 <th>Actions</th>
@@ -186,13 +175,13 @@
             </thead>
             <tbody>
             <%
-                // Détermination du nombre de colonnes pour le colspan
                 int colspan = isAdmin ? 6 : 5;
-
                 if (listePayrolls != null && !listePayrolls.isEmpty()) {
                     for (Payroll payroll : listePayrolls) {
-                        // Formatage des valeurs
-                        String formattedDate = payroll.getDate().format(dateFormatter);
+                        // Utilisation du formatter défini en haut
+                        String rawDate = payroll.getDate().format(monthYearFormatter);
+                        String formattedPeriod = rawDate.substring(0, 1).toUpperCase() + rawDate.substring(1);
+
                         String formattedSalary = currencyFormatter.format(payroll.getSalary());
                         String formattedNetPay = currencyFormatter.format(payroll.getNetPay());
             %>
@@ -201,30 +190,25 @@
                 <% if (isAdmin) { %>
                 <td><%= payroll.getEmployee().getFname() %> <%= payroll.getEmployee().getSname() %></td>
                 <% } %>
-                <td><%= formattedDate %></td>
+                <td><%= formattedPeriod %></td>
                 <td><%= formattedSalary %></td>
-                <td><%= formattedNetPay %></td>
+                <td><strong><%= formattedNetPay %></strong></td>
                 <td class="admin-controls">
                     <div style="display: flex; gap: 5px; align-items: center;">
-                        <a href="${pageContext.request.contextPath}/detail-payroll?id=<%= payroll.getId() %>" class="detail-button">Consulter</a>
-                        <a href="${pageContext.request.contextPath}/print-payroll?id=<%= payroll.getId() %>" class="print-button" target="_blank">Imprimer</a>
+                        <a href="${pageContext.request.contextPath}/detail-payroll?id=<%= payroll.getId() %>" class="detail-button">Voir</a>
+                        <a href="${pageContext.request.contextPath}/print-payroll?id=<%= payroll.getId() %>" class="print-button" target="_blank">PDF</a>
                     </div>
                     <% if (isAdmin) { %>
-                    <form action="${pageContext.request.contextPath}/payroll" method="post">
+                    <form action="${pageContext.request.contextPath}/payroll" method="post" style="display:inline;">
                         <input type="hidden" name="action" value="delete">
                         <input type="hidden" name="IdPayroll" value="<%= payroll.getId() %>">
-                        <button type="submit" class="delete-button" onclick="return confirm('Supprimer cette fiche de paie (ID: <%= payroll.getId() %>) ?');">Supprimer</button>
+                        <button type="submit" class="delete-button" onclick="return confirm('Supprimer ?');">X</button>
                     </form>
                     <% } %>
                 </td>
             </tr>
-            <%
-                }
-            } else {
-            %>
-            <tr>
-                <td colspan="<%= colspan %>" style="text-align: center;">Aucune fiche de paie trouvée.</td>
-            </tr>
+            <% } } else { %>
+            <tr><td colspan="<%= colspan %>" style="text-align: center;">Aucune fiche trouvée.</td></tr>
             <% } %>
             </tbody>
         </table>

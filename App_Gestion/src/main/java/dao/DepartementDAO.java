@@ -10,8 +10,14 @@ public class DepartementDAO {
 
     public Departement findById(int id) {
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
-            // Hibernate charge automatiquement le Chef (Employee) grâce au mapping
-            return session.get(Departement.class, id);
+            // AVANT : return session.get(Departement.class, id);
+
+            // APRES : On force le chargement du chef avec "LEFT JOIN FETCH"
+            return session.createQuery(
+                            "SELECT d FROM Departement d LEFT JOIN FETCH d.chefDepartement WHERE d.id = :id",
+                            Departement.class)
+                    .setParameter("id", id)
+                    .uniqueResult();
         }
     }
 

@@ -1,7 +1,6 @@
 package controller;
 
 import dao.PayrollDAO;
-import dao.EmployeeDAO;
 import model.Payroll;
 import model.utils.IntStringPayroll;
 
@@ -11,7 +10,6 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
-// Importations OpenPDF (similaires à iText)
 import com.lowagie.text.Document;
 import com.lowagie.text.Element;
 import com.lowagie.text.Font;
@@ -25,7 +23,7 @@ import com.lowagie.text.PageSize;
 import java.awt.*;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.sql.SQLException;
+import java.text.Normalizer; // Pour enlever les accents du nom de fichier
 import java.text.NumberFormat;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
@@ -34,87 +32,92 @@ import java.util.Locale;
 public class PrintPayrollServlet extends HttpServlet {
 
     private PayrollDAO payrollDAO;
-    private EmployeeDAO employeeDAO;
 
     @Override
     public void init() {
         payrollDAO = new PayrollDAO();
-        employeeDAO = new EmployeeDAO();
     }
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         String idStr = req.getParameter("id");
         if (idStr == null || idStr.isEmpty()) {
-            resp.sendError(HttpServletResponse.SC_BAD_REQUEST, "ID de fiche de paie manquant.");
+            resp.sendError(HttpServletResponse.SC_BAD_REQUEST, "ID manquant.");
             return;
         }
 
         try {
             int payrollId = Integer.parseInt(idStr);
-            // 1. Récupération des données complètes
             Payroll payroll = payrollDAO.findPayrollById(payrollId);
 
             if (payroll == null) {
-                resp.sendError(HttpServletResponse.SC_NOT_FOUND, "Fiche de paie non trouvée.");
+                resp.sendError(HttpServletResponse.SC_NOT_FOUND, "Fiche non trouvée.");
                 return;
             }
 
-            // Assurez-vous que les détails sont chargés (primes/déductions)
-            payroll.setBonusesList(payrollDAO.getAllPayrollsDetails(payrollId, "Prime"));
-            payroll.setDeductionsList(payrollDAO.getAllPayrollsDetails(payrollId, "Déduction"));
+            // --- CONSTRUCTION DU NOM DE FICHIER ---
+            // 1. Récupération Nom/Prénom et nettoyage (accents/espaces)
+            String nom = cleanString(payroll.getEmployee().getSname()).toUpperCase();
+            String prenom = cleanString(payroll.getEmployee().getFname());
 
-            // L'employé doit être chargé par le DAO
-            payroll.setEmployee(employeeDAO.findEmployeeById(payroll.getEmployeeId()));
+            // 2. Formatage Date (Mois-Annee ex: Mars-2024)
+            DateTimeFormatter fileDateFmt = DateTimeFormatter.ofPattern("MMMM-yyyy", Locale.FRANCE);
+            String dateStr = cleanString(payroll.getDate().format(fileDateFmt));
+            // On s'assure que la première lettre est majuscule (mars -> Mars)
+            dateStr = dateStr.substring(0, 1).toUpperCase() + dateStr.substring(1);
 
-            // 2. Configuration de la réponse HTTP pour le PDF
+            String filename = "FicheDePaie_" + nom + "_" + prenom + "_" + dateStr + ".pdf";
+
+            // 3. Configuration réponse
             resp.setContentType("application/pdf");
-            resp.setHeader("Content-Disposition", "attachment; filename=\"FicheDePaie_" + payroll.getId() + ".pdf\"");
-            OutputStream out = resp.getOutputStream();
+            // "attachment" force le téléchargement, "inline" l'ouvre dans le navigateur
+            resp.setHeader("Content-Disposition", "attachment; filename=\"" + filename + "\"");
 
-            // 3. Génération du PDF avec OpenPDF
+            OutputStream out = resp.getOutputStream();
             generatePdf(out, payroll);
 
-        } catch (NumberFormatException e) {
-            resp.sendError(HttpServletResponse.SC_BAD_REQUEST, "ID de fiche de paie invalide.");
-        } catch (SQLException e) {
-            e.printStackTrace();
-            resp.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Erreur de base de données : " + e.getMessage());
         } catch (Exception e) {
             e.printStackTrace();
-            resp.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Erreur lors de la génération du PDF : " + e.getMessage());
+            resp.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Erreur PDF : " + e.getMessage());
         }
     }
 
+    // Petite fonction utilitaire pour nettoyer les chaines (enlever accents et espaces)
+    private String cleanString(String input) {
+        if (input == null) return "";
+        String normalized = Normalizer.normalize(input, Normalizer.Form.NFD);
+        return normalized.replaceAll("[\\p{InCombiningDiacriticalMarks}]", "") // Enleve accents
+                .replaceAll("\\s+", "-"); // Remplace espaces par tirets
+    }
+
     /**
-     * Logique de génération du contenu PDF en utilisant OpenPDF
+     * Logique de génération du contenu PDF avec OpenPDF
      */
     private void generatePdf(OutputStream out, Payroll payroll) throws Exception {
         Document document = new Document(PageSize.A4);
         PdfWriter.getInstance(document, out);
         document.open();
 
-        // Formattage des nombres et dates
+        // Formats
         NumberFormat currencyFormat = NumberFormat.getCurrencyInstance(Locale.FRANCE);
         DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd MMMM yyyy", Locale.FRANCE);
 
-        // --- Styles ---
+        // --- Styles de Police ---
         Font fontTitle = new Font(Font.HELVETICA, 16, Font.BOLD);
         Font fontHeader = new Font(Font.HELVETICA, 12, Font.BOLD);
         Font fontNormal = new Font(Font.HELVETICA, 11, Font.NORMAL);
         Font fontBonus = new Font(Font.HELVETICA, 12, Font.NORMAL, Color.GREEN);
         Font fontDeduction = new Font(Font.HELVETICA, 12, Font.NORMAL, Color.RED);
-        Font Pay = new Font(Font.HELVETICA, 14, Font.BOLD);
-
+        Font fontPay = new Font(Font.HELVETICA, 14, Font.BOLD);
 
         // --- Titre ---
         Paragraph title = new Paragraph("FICHE DE PAIE N° " + payroll.getId(), fontTitle);
         title.setAlignment(Element.ALIGN_CENTER);
         document.add(title);
-        document.add(new Paragraph(" ")); // Saut de ligne
-
+        document.add(new Paragraph(" "));
 
         // --- Section Employé ---
+
         document.add(new Paragraph("Informations Employé :", fontHeader));
 
         PdfPTable tableInfo = new PdfPTable(2);
@@ -122,27 +125,34 @@ public class PrintPayrollServlet extends HttpServlet {
         tableInfo.setSpacingBefore(10f);
         tableInfo.setSpacingAfter(10f);
 
-        // Entête
+        // On accède à l'employé via l'objet Payroll chargé par Hibernate
+        String nomComplet = "Inconnu";
+        String poste = "Non défini";
+
+        if (payroll.getEmployee() != null) {
+            nomComplet = payroll.getEmployee().getFname() + " " + payroll.getEmployee().getSname();
+            poste = payroll.getEmployee().getPosition();
+        }
+
         tableInfo.addCell(createCell("Nom Complet:", fontHeader));
-        tableInfo.addCell(createCell(payroll.getEmployee().getFname() + " " + payroll.getEmployee().getSname(), fontNormal));
+        tableInfo.addCell(createCell(nomComplet, fontNormal));
 
         tableInfo.addCell(createCell("Poste:", fontHeader));
-        tableInfo.addCell(createCell(payroll.getEmployee().getPosition(), fontNormal));
+        tableInfo.addCell(createCell(poste, fontNormal));
 
-        tableInfo.addCell(createCell("Date du Paiement:", fontHeader));
+        tableInfo.addCell(createCell("Date:", fontHeader));
         tableInfo.addCell(createCell(payroll.getDate().format(dateFormatter), fontNormal));
 
         document.add(tableInfo);
 
-        // --- Net à Payer Final ---
+        // --- Salaire de base ---
         Paragraph salaire = new Paragraph(
                 "Salaire de base : " + currencyFormat.format(payroll.getSalary()),
-                Pay
+                fontPay
         );
         salaire.setAlignment(Element.ALIGN_RIGHT);
         document.add(salaire);
 
-        // --- Détails Paie (Primes et Déductions) ---
         document.add(new Paragraph("Détails de la Rémunération :", fontHeader));
 
         PdfPTable tableDetails = new PdfPTable(3);
@@ -153,15 +163,12 @@ public class PrintPayrollServlet extends HttpServlet {
         tableDetails.addCell(createCell("Type", fontHeader));
         tableDetails.addCell(createCell("Montant", fontHeader));
 
-
-        // Primes
         for (IntStringPayroll bonus : payroll.getBonusesList()) {
             tableDetails.addCell(createCell(bonus.getLabel(), fontNormal));
             tableDetails.addCell(createCell("PRIME (+)", fontBonus));
             tableDetails.addCell(createCell(currencyFormat.format(bonus.getAmount()), fontNormal));
         }
 
-        // Déductions
         for (IntStringPayroll deduction : payroll.getDeductionsList()) {
             tableDetails.addCell(createCell(deduction.getLabel(), fontNormal));
             tableDetails.addCell(createCell("DÉDUCTION (-)", fontDeduction));
@@ -171,10 +178,9 @@ public class PrintPayrollServlet extends HttpServlet {
         document.add(tableDetails);
         document.add(new Paragraph(" "));
 
-        // --- Net à Payer Final ---
         Paragraph netPay = new Paragraph(
                 "Net à payer : " + currencyFormat.format(payroll.getNetPay()),
-                Pay
+                fontPay
         );
         netPay.setAlignment(Element.ALIGN_RIGHT);
         document.add(netPay);
@@ -182,9 +188,6 @@ public class PrintPayrollServlet extends HttpServlet {
         document.close();
     }
 
-    /**
-     * Helper pour créer une cellule de tableau OpenPDF
-     */
     private PdfPCell createCell(String content, Font font) {
         PdfPCell cell = new PdfPCell(new Phrase(content, font));
         cell.setPadding(5);

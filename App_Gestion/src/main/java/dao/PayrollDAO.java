@@ -1,68 +1,161 @@
 package dao;
 
-import model.Employee;
 import model.Payroll;
 import model.utils.IntStringPayroll;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
+import org.hibernate.query.Query;
 
 import java.time.LocalDate;
 import java.util.List;
 
 public class PayrollDAO {
 
-    // --- LECTURE ---
-
     public List<Payroll> getAllPayrolls() {
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
-            // Hibernate charge Employee et les Lignes (allLines) automatiquement
-            return session.createQuery("SELECT p FROM Payroll p", Payroll.class).list();
+            // LEFT JOIN FETCH charge l'employé et les détails pour éviter le LazyInitializationException
+            return session.createQuery(
+                    "SELECT DISTINCT p FROM Payroll p " +
+                            "LEFT JOIN FETCH p.employee " +
+                            "LEFT JOIN FETCH p.allDetails", Payroll.class).list();
         }
     }
 
-    public List<Payroll> findPayrollByEmployee(Employee e) {
+    public List<Payroll> findPayrollByEmployee(int employeeId) {
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
-            return session.createQuery("FROM Payroll p WHERE p.employee.id = :empId", Payroll.class)
-                    .setParameter("empId", e.getId())
+            return session.createQuery(
+                            "SELECT DISTINCT p FROM Payroll p " +
+                                    "LEFT JOIN FETCH p.employee " +
+                                    "LEFT JOIN FETCH p.allDetails " +
+                                    "WHERE p.employee.id = :eid", Payroll.class)
+                    .setParameter("eid", employeeId)
                     .list();
         }
     }
 
-    public List<Payroll> findPayrollByPeriod(LocalDate debut, LocalDate fin) {
+    public Payroll findPayrollById(int id) {
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
-            return session.createQuery("FROM Payroll p WHERE p.date BETWEEN :debut AND :fin", Payroll.class)
-                    .setParameter("debut", debut)
-                    .setParameter("fin", fin)
-                    .list();
+            return session.createQuery(
+                            "SELECT DISTINCT p FROM Payroll p " +
+                                    "LEFT JOIN FETCH p.employee " +
+                                    "LEFT JOIN FETCH p.allDetails " +
+                                    "WHERE p.id = :pid", Payroll.class)
+                    .setParameter("pid", id)
+                    .uniqueResult();
         }
     }
 
-    public Payroll findById(int id) {
+    public List<Payroll> searchPayrolls(String employeeIdStr, String dateDebut, String dateFin) {
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
-            return session.get(Payroll.class, id);
+            StringBuilder hql = new StringBuilder("SELECT DISTINCT p FROM Payroll p LEFT JOIN FETCH p.employee LEFT JOIN FETCH p.allDetails WHERE 1=1 ");
+
+            if (employeeIdStr != null && !employeeIdStr.isEmpty()) {
+                hql.append("AND p.employee.id = :eid ");
+            }
+            if (dateDebut != null && !dateDebut.isEmpty()) {
+                hql.append("AND p.date >= :dStart ");
+            }
+            if (dateFin != null && !dateFin.isEmpty()) {
+                hql.append("AND p.date <= :dEnd ");
+            }
+
+            Query<Payroll> query = session.createQuery(hql.toString(), Payroll.class);
+
+            if (employeeIdStr != null && !employeeIdStr.isEmpty()) {
+                query.setParameter("eid", Integer.parseInt(employeeIdStr));
+            }
+            if (dateDebut != null && !dateDebut.isEmpty()) {
+                query.setParameter("dStart", LocalDate.parse(dateDebut));
+            }
+            if (dateFin != null && !dateFin.isEmpty()) {
+                query.setParameter("dEnd", LocalDate.parse(dateFin));
+            }
+
+            return query.list();
         }
     }
 
-    // --- ÉCRITURE (Cascade gère tout) ---
-
-    public void createPayroll(Payroll payroll) {
+    public int createPayroll(Payroll payroll) {
         Transaction tx = null;
+        int id = 0;
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
             tx = session.beginTransaction();
-            // Grâce au CascadeType.ALL dans Payroll, ceci sauvegarde aussi les lignes !
+            // persist sauvegarde Payroll ET (grâce à CascadeType.ALL) toutes les lignes ajoutées
             session.persist(payroll);
             tx.commit();
+            id = payroll.getId();
         } catch (Exception e) {
             if (tx != null) tx.rollback();
             e.printStackTrace();
         }
+        return id;
     }
 
-    public void updatePayroll(Payroll payroll) {
+    /**
+     * Recherche avancée.
+     * @param monthStr Format attendu "YYYY-MM" (ex: "2024-03")
+     */
+    public List<Payroll> searchPayrolls(String employeeIdStr, String monthStr) {
+        try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+            StringBuilder hql = new StringBuilder("SELECT DISTINCT p FROM Payroll p LEFT JOIN FETCH p.employee LEFT JOIN FETCH p.allDetails WHERE 1=1 ");
+
+            if (employeeIdStr != null && !employeeIdStr.isEmpty()) {
+                hql.append("AND p.employee.id = :eid ");
+            }
+
+            // FILTRE PAR MOIS : On compare l'année et le mois de la date
+            if (monthStr != null && !monthStr.isEmpty()) {
+                // monthStr est "2024-03". On peut parser ou utiliser des fonctions SQL
+                // Ici on va parser pour extraire année et mois
+                hql.append("AND YEAR(p.date) = :year AND MONTH(p.date) = :month ");
+            }
+
+            // Tri par date décroissante (plus récent en premier)
+            hql.append("ORDER BY p.date DESC");
+
+            Query<Payroll> query = session.createQuery(hql.toString(), Payroll.class);
+
+            if (employeeIdStr != null && !employeeIdStr.isEmpty()) {
+                query.setParameter("eid", Integer.parseInt(employeeIdStr));
+            }
+
+            if (monthStr != null && !monthStr.isEmpty()) {
+                String[] parts = monthStr.split("-");
+                int year = Integer.parseInt(parts[0]);
+                int month = Integer.parseInt(parts[1]);
+                query.setParameter("year", year);
+                query.setParameter("month", month);
+            }
+
+            return query.list();
+        }
+    }
+
+    public void updatePayroll(Payroll payrollData, List<IntStringPayroll> newLines) {
         Transaction tx = null;
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
             tx = session.beginTransaction();
-            session.merge(payroll);
+
+            // 1. Charger l'objet persistant
+            Payroll existingPayroll = session.get(Payroll.class, payrollData.getId());
+
+            if (existingPayroll != null) {
+                // 2. Mise à jour des champs simples
+                existingPayroll.setDate(payrollData.getDate());
+                existingPayroll.setSalary(payrollData.getSalary());
+                existingPayroll.setNetPay(payrollData.getNetPay());
+                // Attention : Si l'employé change, il faut charger le nouvel objet Employee via session.get(Employee.class, id)
+                // Ici on suppose que l'ID employé ne change pas ou que payrollData a le bon objet Employee
+
+                // 3. Gestion des lignes : On vide et on remplace
+                existingPayroll.clearDetails(); // orphanRemoval=true supprimera les anciennes lignes en BDD
+
+                for (IntStringPayroll line : newLines) {
+                    existingPayroll.addDetail(line);
+                }
+
+                session.merge(existingPayroll);
+            }
             tx.commit();
         } catch (Exception e) {
             if (tx != null) tx.rollback();
@@ -76,28 +169,7 @@ public class PayrollDAO {
             tx = session.beginTransaction();
             Payroll p = session.get(Payroll.class, id);
             if (p != null) {
-                session.remove(p); // Supprime aussi les lignes grâce à orphanRemoval=true
-            }
-            tx.commit();
-        } catch (Exception e) {
-            if (tx != null) tx.rollback();
-            e.printStackTrace();
-        }
-    }
-
-    // --- GESTION DES LIGNES INDIVIDUELLES (Optionnel avec Cascade) ---
-    // Normalement, on manipule l'objet Payroll, on ajoute une ligne, et on save Payroll.
-    // Mais voici comment supprimer une ligne spécifique si besoin.
-
-    public void deletePayrollLine(int idLine) {
-        Transaction tx = null;
-        try (Session session = HibernateUtil.getSessionFactory().openSession()) {
-            tx = session.beginTransaction();
-            IntStringPayroll line = session.get(IntStringPayroll.class, idLine);
-            if (line != null) {
-                // Il faut aussi la retirer de la liste du parent pour que la synchro se fasse bien
-                line.getPayroll().getAllLines().remove(line);
-                session.remove(line);
+                session.remove(p);
             }
             tx.commit();
         } catch (Exception e) {

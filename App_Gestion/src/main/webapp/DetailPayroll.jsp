@@ -1,7 +1,7 @@
 <%@ page import="model.Employee" %>
 <%@ page import="model.Payroll" %>
 <%@ page import="model.utils.IntStringPayroll" %>
-<%@ page import="model.utils.Role" %>
+<%@ page import="model.utils.RoleEnum" %>
 <%@ page import="java.util.List" %>
 <%@ page import="java.util.ArrayList" %>
 <%@ page contentType="text/html;charset=UTF-8" language="java" %>
@@ -15,7 +15,7 @@
     }
 
     // NOUVEAU : Déclaration de isAdmin
-    boolean isAdmin = user.hasRole(Role.ADMINISTRATOR);
+    boolean isAdmin = user.hasRole(RoleEnum.ADMINISTRATOR);
 
     // --- Récupération des données ---
     List<Employee> allEmployees = (List<Employee>) request.getAttribute("allEmployees");

@@ -10,11 +10,11 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import model.Departement;
 import model.Employee;
-import model.utils.Role;
+import model.utils.RoleEnum;
 
 import java.io.IOException;
-import java.sql.SQLException;
 import java.util.List;
+// Note : import java.sql.SQLException supprimé car inutile avec Hibernate
 
 @WebServlet(name = "GestionDepartementServlet", urlPatterns = "/departements")
 public class GestionDepartementServlet extends HttpServlet {
@@ -30,7 +30,6 @@ public class GestionDepartementServlet extends HttpServlet {
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-        // ... (Ton code doGet est correct) ...
         HttpSession session = req.getSession(false);
         Employee user = (session != null) ? (Employee) session.getAttribute("currentUser") : null;
 
@@ -44,7 +43,7 @@ public class GestionDepartementServlet extends HttpServlet {
             List<Employee> allEmployees = employeeDAO.getAllEmployees();
             req.setAttribute("listeDepartements", listeDepartements);
             req.setAttribute("allEmployees", allEmployees);
-        } catch (SQLException e) {
+        } catch (Exception e) {
             e.printStackTrace();
             req.setAttribute("errorMessage", "Erreur BDD : " + e.getMessage());
         }
@@ -57,7 +56,7 @@ public class GestionDepartementServlet extends HttpServlet {
         HttpSession session = req.getSession(false);
         Employee user = (session != null) ? (Employee) session.getAttribute("currentUser") : null;
 
-        if (user == null || !user.hasRole(Role.ADMINISTRATOR)) {
+        if (user == null || !user.hasRole(RoleEnum.ADMINISTRATOR)) {
             resp.sendError(HttpServletResponse.SC_FORBIDDEN);
             return;
         }
@@ -67,51 +66,57 @@ public class GestionDepartementServlet extends HttpServlet {
         try {
             if ("create".equals(action)) {
                 String nom = req.getParameter("nomDepartement");
+                // Parse de l'ID venant du formulaire
                 int idChef = Integer.parseInt(req.getParameter("idChefDepartement"));
 
                 if (nom == null || nom.trim().isEmpty()) {
                     session.setAttribute("errorMessage", "Le nom du département est requis.");
                 } else {
-
-                    // --- LOGIQUE CORRIGÉE ---
-                    // 1. D'ABORD, on libère le chef de son ancien poste (s'il en a un)
+                    // 1. Si le futur chef a déjà un poste, on le retire de l'ancien
                     if (idChef > 0) {
                         departementDAO.removeAsChiefFromAnyDepartment(idChef);
                     }
 
-                    // 2. ENSUITE, on crée le nouveau département
+                    // 2. Création (Le DAO gère la récupération de l'objet Employee via l'ID)
                     int newDeptId = departementDAO.createDepartment(nom, idChef);
 
+                    // 3. Mise à jour des rôles et de l'affectation
                     if (idChef > 0) {
-                        // 3. On assigne le rôle ET le département
                         employeeDAO.assignHeadDepartementRole(idChef);
                         employeeDAO.setEmployeeDepartment(idChef, newDeptId);
                     }
-                    // --- FIN LOGIQUE ---
 
                     session.setAttribute("successMessage", "Département créé avec succès.");
                 }
 
             } else if ("delete".equals(action)) {
-                // ... (La logique de suppression est correcte) ...
                 int id = Integer.parseInt(req.getParameter("deptId"));
-                int oldChefId = 0;
+
+                // Récupération de l'ancien chef AVANT suppression
+                Employee oldChef = null;
                 Departement deptASupprimer = departementDAO.findById(id);
+
                 if (deptASupprimer != null) {
-                    oldChefId = deptASupprimer.getIdChefDepartement();
+                    oldChef = deptASupprimer.getChefDepartement(); // Récupère l'objet
                 }
+
+                // Suppression du département
                 departementDAO.deleteDepartment(id);
-                if (oldChefId > 0) {
-                    employeeDAO.checkAndRemoveHeadDepartementRole(oldChefId);
+
+                // Mise à jour du rôle de l'ancien chef
+                if (oldChef != null) { // CORRIGÉ : Vérification null explicite
+                    // CORRIGÉ : On passe l'ID, pas l'objet
+                    employeeDAO.checkAndRemoveHeadDepartementRole(oldChef.getId());
                 }
+
                 session.setAttribute("successMessage", "Département supprimé avec succès.");
             }
 
-        } catch (SQLException e) {
-            e.printStackTrace();
-            session.setAttribute("errorMessage", "Erreur SQL : " + e.getMessage());
         } catch (NumberFormatException e) {
             session.setAttribute("errorMessage", "ID invalide.");
+        } catch (Exception e) { // CORRIGÉ : Catch global pour Hibernate
+            e.printStackTrace();
+            session.setAttribute("errorMessage", "Erreur lors de l'opération : " + e.getMessage());
         }
 
         resp.sendRedirect(req.getContextPath() + "/departements");

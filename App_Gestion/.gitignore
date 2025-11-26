@@ -43,3 +43,6 @@ build/
 
 # Temporary files
 *.tmp
+
+
+src/main/resources/hibernate.cfg.xml

@@ -6,14 +6,19 @@
 <hibernate-configuration>
     <session-factory>
         <property name="hibernate.connection.driver_class">com.mysql.cj.jdbc.Driver</property>
-        <property name="hibernate.connection.url">jdbc:mysql://localhost:3306/GestionRH?useSSL=false&amp;serverTimezone=UTC</property>
+        <property name="connection.url">jdbc:mysql://localhost:3306/GestionRH?useSSL=false&amp;serverTimezone=UTC&amp;allowPublicKeyRetrieval=true</property>
         <property name="hibernate.connection.username">root</property>
-        <property name="hibernate.connection.password">root</property>
+        <property name="hibernate.connection.password"></property>
 
         <property name="hibernate.dialect">org.hibernate.dialect.MySQL8Dialect</property>
         <property name="hibernate.hbm2ddl.auto">update</property>
         <property name="hibernate.show_sql">true</property>
 
         <mapping class="model.Employee"/>
+        <mapping class="model.RoleEmp"/>
+        <mapping class="model.Departement"/>
+        <mapping class="model.Project"/>
+        <mapping class="model.Payroll"/>
+        <mapping class="model.utils.IntStringPayroll"/>
     </session-factory>
 </hibernate-configuration>

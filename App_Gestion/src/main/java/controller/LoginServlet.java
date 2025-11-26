@@ -36,7 +36,7 @@ public class LoginServlet extends HttpServlet {
             // On appelle le DAO
             user = employeeDAO.findByEmailAndPassword(email, password);
 
-        } catch (SQLException e) {
+        } catch (Exception e) {
             e.printStackTrace();
             // Si la BDD plante, on gère ça comme un échec
             req.setAttribute("errorMessage", "Erreur de base de données. Veuillez contacter un admin.");
@@ -57,6 +57,4 @@ public class LoginServlet extends HttpServlet {
             req.getRequestDispatcher("Connexion.jsp").forward(req, resp);
         }
     }
-
-    // 5. L'ancienne méthode authenticate() est supprimée
 }

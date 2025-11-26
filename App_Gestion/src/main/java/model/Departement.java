@@ -1,24 +1,39 @@
 package model;
 
-// POJO simple pour la table Departement
-public class Departement {
-    private int id;
-    private String nomDepartement;
-    private int idChefDepartement;
+import jakarta.persistence.*;
 
-    // Constructeurs, Getters, Setters...
+@Entity
+@Table(name = "Departement")
+public class Departement {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id_departement") // Correspond à ta PK SQL
+    private int id;
+
+    @Column(name = "nom_departement", nullable = false)
+    private String nomDepartement;
+
+    // RELATION : Au lieu d'un int, on met l'Objet Employee
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_chef_departement") // La colonne FK dans la table Departement
+    private Employee chefDepartement;
+
+    // Constructeur vide OBLIGATOIRE
     public Departement() {}
 
-    public Departement(int id, String nomDepartement, int idChefDepartement) {
-        this.id = id;
+    public Departement(String nomDepartement, Employee chefDepartement) {
         this.nomDepartement = nomDepartement;
-        this.idChefDepartement = idChefDepartement;
+        this.chefDepartement = chefDepartement;
     }
 
+    // Getters et Setters
     public int getId() { return id; }
     public void setId(int id) { this.id = id; }
+
     public String getNomDepartement() { return nomDepartement; }
     public void setNomDepartement(String nomDepartement) { this.nomDepartement = nomDepartement; }
-    public int getIdChefDepartement() { return idChefDepartement; }
-    public void setIdChefDepartement(int idChefDepartement) { this.idChefDepartement = idChefDepartement; }
+
+    public Employee getChefDepartement() { return chefDepartement; }
+    public void setChefDepartement(Employee chefDepartement) { this.chefDepartement = chefDepartement; }
 }

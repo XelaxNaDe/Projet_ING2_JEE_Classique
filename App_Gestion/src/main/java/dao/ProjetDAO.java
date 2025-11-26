@@ -1,237 +1,141 @@
 package dao;
 
-import model.Projet;
-import java.sql.*;
-import java.util.ArrayList;
+import model.Project;
+import model.Employee;
+import org.hibernate.Session;
+import org.hibernate.Transaction;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.HashMap;
-import model.Employee;
-import java.sql.Statement;
 
 public class ProjetDAO {
 
-    /**
-     * Récupère tous les projets de la BDD.
-     */
-    /**
-     * Récupère tous les projets de la BDD. (Version simplifiée SANS jointure)
-     */
-    public List<Projet> getAllProjects() throws SQLException {
-        List<Projet> projets = new ArrayList<>();
-
-        // REQUÊTE SIMPLIFIÉE : On prend juste tout dans la table Projet
-        String sql = "SELECT * FROM Projet";
-
-        try (Connection conn = DatabaseManager.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql);
-             ResultSet rs = ps.executeQuery()) {
-
-            while (rs.next()) {
-                int id = rs.getInt("id_projet");
-                String nom = rs.getString("nom_projet");
-                java.util.Date debut = rs.getDate("date_debut");
-                java.util.Date fin = rs.getDate("date_fin");
-                int idChef = rs.getInt("id_chef_projet");
-                String etat = rs.getString("etat");
-
-                Projet projet = new Projet(id, nom, debut, fin, idChef, etat);
-                projets.add(projet);
-            }
-        }
-        // Si ça plante ici (par ex. "Unknown column 'id_chef_projet'"),
-        // l'erreur sera attrapée par la servlet.
-        return projets;
-    }
-
-    /**
-     * Crée un nouveau projet dans la BDD.
-     */
-    public int createProject(Projet projet) throws SQLException {
-        String sql = "INSERT INTO Projet (nom_projet, date_debut, date_fin, id_chef_projet, etat) VALUES (?, ?, ?, ?, ?)";
-        int newId = 0; // Pour stocker l'ID généré
-
-        // On utilise RETURN_GENERATED_KEYS pour récupérer le nouvel ID
-        try (Connection conn = DatabaseManager.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-
-            ps.setString(1, projet.getNomProjet());
-            ps.setDate(2, new java.sql.Date(projet.getDateDebut().getTime()));
-            ps.setDate(3, new java.sql.Date(projet.getDateFin().getTime()));
-            ps.setInt(4, projet.getIdChefProjet());
-            ps.setString(5, projet.getEtat());
-
-            ps.executeUpdate();
-
-            // Récupérer l'ID généré
-            try (ResultSet rs = ps.getGeneratedKeys()) {
-                if (rs.next()) {
-                    newId = rs.getInt(1);
-                }
-            }
-        }
-        return newId; // Renvoie l'ID (ou 0 si l'insertion a échoué)
-    }
-
-    public void deleteProject(int idProjet) throws SQLException {
-        String sql = "DELETE FROM Projet WHERE id_projet = ?";
-
-        try (Connection conn = DatabaseManager.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-
-            ps.setInt(1, idProjet);
-            ps.executeUpdate();
+    public List<Project> getAllProjects() {
+        try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+            return session.createQuery("SELECT p FROM Project p LEFT JOIN FETCH p.chefProjet", Project.class).list();
         }
     }
 
-    public Projet getProjectById(int idProjet) throws SQLException {
-        Projet projet = null;
-        String sql = "SELECT p.*, e.fname, e.sname FROM Projet p " +
-                "LEFT JOIN Employee e ON p.id_chef_projet = e.id " +
-                "WHERE p.id_projet = ?";
+    public int createProject(Project project) {
+        Transaction tx = null;
+        int id = 0;
+        try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+            tx = session.beginTransaction();
 
-        try (Connection conn = DatabaseManager.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+            // Utilisation de MERGE au lieu de PERSIST pour gérer l'employé détaché
+            Project mergedProject = session.merge(project);
 
-            ps.setInt(1, idProjet);
+            tx.commit();
 
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    int id = rs.getInt("id_projet");
-                    String nom = rs.getString("nom_projet");
-                    java.util.Date debut = rs.getDate("date_debut");
-                    java.util.Date fin = rs.getDate("date_fin");
-                    int idChef = rs.getInt("id_chef_projet");
-                    String etat = rs.getString("etat");
-
-                    projet = new Projet(id, nom, debut, fin, idChef, etat);
-
-                    // (BONUS) Stocker le nom du chef de projet s'il est trouvé
-                    // Tu devras ajouter ce champ et les getter/setter à ton modèle Projet.java
-                    // projet.setNomChefProjet(rs.getString("fname") + " " + rs.getString("sname"));
-                }
-            }
+            // On récupère l'ID de l'objet mergé (qui est connecté à la base)
+            id = mergedProject.getIdProjet();
+        } catch (Exception e) {
+            if (tx != null) tx.rollback();
+            e.printStackTrace();
         }
-        return projet; // Renvoie null si non trouvé
+        return id;
     }
 
-    public void updateProject(Projet projet) throws SQLException {
-        String sql = "UPDATE Projet SET nom_projet = ?, date_debut = ?, date_fin = ?, etat = ?, id_chef_projet = ? WHERE id_projet = ?";
-
-        try (Connection conn = DatabaseManager.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-
-            ps.setString(1, projet.getNomProjet());
-            ps.setDate(2, new java.sql.Date(projet.getDateDebut().getTime()));
-            ps.setDate(3, new java.sql.Date(projet.getDateFin().getTime()));
-            ps.setString(4, projet.getEtat());
-            ps.setInt(5, projet.getIdChefProjet()); // Le champ ajouté
-            ps.setInt(6, projet.getIdProjet()); // Le WHERE
-
-            ps.executeUpdate();
+    public Project getProjectById(int id) {
+        try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+            return session.get(Project.class, id);
         }
     }
-// ... (tes méthodes existantes : getAllProjects, createProject, etc. sont ici) ...
 
-    /**
-     * Récupère la liste des employés affectés à un projet et leur rôle.
-     * Renvoie une Map<Employee, String> (Employé -> Rôle dans le projet)
-     */
-    public Map<Employee, String> getAssignedEmployees(int idProjet) throws SQLException {
+    public void updateProject(Project project) {
+        Transaction tx = null;
+        try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+            tx = session.beginTransaction();
+            session.merge(project);
+            tx.commit();
+        } catch (Exception e) {
+            if (tx != null) tx.rollback();
+            e.printStackTrace();
+        }
+    }
+
+    public void deleteProject(int id) {
+        Transaction tx = null;
+        try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+            tx = session.beginTransaction();
+            Project p = session.get(Project.class, id);
+            if (p != null) session.remove(p);
+            tx.commit();
+        } catch (Exception e) {
+            if (tx != null) tx.rollback();
+        }
+    }
+
+    public Map<Employee, String> getAssignedEmployees(int idProjet) {
         Map<Employee, String> team = new HashMap<>();
-        // Jointure pour récupérer les infos de l'employé ET son rôle
-        String sql = "SELECT e.*, ep.role_dans_projet FROM Employee e " +
-                "JOIN Employe_Projet ep ON e.id = ep.id " +
-                "WHERE ep.id_projet = ?";
+        try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+            List<Object[]> results = session.createNativeQuery(
+                            "SELECT e.*, ep.role_dans_projet FROM Employee e " +
+                                    "JOIN Employe_Projet ep ON e.id = ep.id " +
+                                    "WHERE ep.id_projet = :pid", Object[].class)
+                    .setParameter("pid", idProjet)
+                    .addEntity("e", Employee.class)
+                    .addScalar("role_dans_projet", org.hibernate.type.StandardBasicTypes.STRING)
+                    .list();
 
-        try (Connection conn = DatabaseManager.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-
-            ps.setInt(1, idProjet);
-
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    // Crée l'objet Employee
-                    Employee emp = new Employee(
-                            rs.getString("fname"),
-                            rs.getString("sname"),
-                            rs.getString("gender"),
-                            rs.getString("email"),
-                            rs.getString("password"),
-                            rs.getString("position"),
-                            rs.getString("grade"),
-                            rs.getInt("id_departement")
-                    );
-                    emp.setId(rs.getInt("id"));
-
-                    String roleInProject = rs.getString("role_dans_projet");
-                    team.put(emp, roleInProject);
-                }
+            for (Object[] row : results) {
+                Employee emp = (Employee) row[0];
+                String role = (String) row[1];
+                team.put(emp, role);
             }
         }
         return team;
     }
 
-    /**
-     * Ajoute un employé à un projet (ou met à jour son rôle s'il y est déjà).
-     */
-    public void assignEmployeeToProject(int idProjet, int idEmploye, String role) throws SQLException {
-        // ON DUPLICATE KEY UPDATE gère la création et la mise à jour en une fois
-        String sql = "INSERT INTO Employe_Projet (id, id_projet, role_dans_projet) VALUES (?, ?, ?) " +
-                "ON DUPLICATE KEY UPDATE role_dans_projet = ?";
+    public void assignEmployeeToProject(int idProjet, int idEmploye, String role) {
+        Transaction tx = null;
+        try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+            tx = session.beginTransaction();
+            session.createNativeQuery("INSERT INTO Employe_Projet (id, id_projet, role_dans_projet) VALUES (:eid, :pid, :role) " +
+                            "ON DUPLICATE KEY UPDATE role_dans_projet = :role")
+                    .setParameter("eid", idEmploye)
+                    .setParameter("pid", idProjet)
+                    .setParameter("role", role)
+                    .executeUpdate();
+            tx.commit();
+        } catch (Exception e) {
+            if (tx != null) tx.rollback();
+            e.printStackTrace();
+        }
+    }
 
-        try (Connection conn = DatabaseManager.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+    public void removeEmployeeFromProject(int idProjet, int idEmploye) {
+        Transaction tx = null;
+        try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+            tx = session.beginTransaction();
+            session.createNativeQuery("DELETE FROM Employe_Projet WHERE id = :eid AND id_projet = :pid")
+                    .setParameter("eid", idEmploye)
+                    .setParameter("pid", idProjet)
+                    .executeUpdate();
+            tx.commit();
+        } catch (Exception e) {
+            if (tx != null) tx.rollback();
+        }
+    }
 
-            ps.setInt(1, idEmploye);
-            ps.setInt(2, idProjet);
-            ps.setString(3, role);
-            ps.setString(4, role); // Pour la partie UPDATE
-
-            ps.executeUpdate();
+    public List<Project> getProjectsByEmployeeId(int idEmploye) {
+        try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+            return session.createNativeQuery(
+                            "SELECT p.* FROM Projet p JOIN Employe_Projet ep ON p.id_projet = ep.id_projet WHERE ep.id = :eid", Project.class)
+                    .setParameter("eid", idEmploye)
+                    .list();
         }
     }
 
     /**
-     * Retire un employé d'un projet.
+     * Récupère la liste des IDs des employés affectés à un projet.
+     * Utile pour le filtre dans la recherche d'employés.
      */
-    public void removeEmployeeFromProject(int idProjet, int idEmploye) throws SQLException {
-        String sql = "DELETE FROM Employe_Projet WHERE id = ? AND id_projet = ?";
-        try (Connection conn = DatabaseManager.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-
-            ps.setInt(1, idEmploye);
-            ps.setInt(2, idProjet);
-
-            ps.executeUpdate();
+    public List<Integer> getEmployeeIdsByProject(int idProjet) {
+        try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+            return session.createNativeQuery("SELECT id FROM Employe_Projet WHERE id_projet = :pid", Integer.class)
+                    .setParameter("pid", idProjet)
+                    .list();
         }
-    }
-    public List<Projet> getProjectsByEmployeeId(int idEmploye) throws SQLException {
-        List<Projet> projets = new ArrayList<>();
-        // On joint Projet et Employe_Projet
-        String sql = "SELECT p.* FROM Projet p " +
-                "JOIN Employe_Projet ep ON p.id_projet = ep.id_projet " +
-                "WHERE ep.id = ?";
-
-        try (Connection conn = DatabaseManager.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-
-            ps.setInt(1, idEmploye);
-
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    Projet projet = new Projet(
-                            rs.getInt("id_projet"),
-                            rs.getString("nom_projet"),
-                            rs.getDate("date_debut"),
-                            rs.getDate("date_fin"),
-                            rs.getInt("id_chef_projet"),
-                            rs.getString("etat")
-                    );
-                    projets.add(projet);
-                }
-            }
-        }
-        return projets;
     }
 }

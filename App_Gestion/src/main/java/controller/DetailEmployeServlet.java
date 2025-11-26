@@ -1,333 +1,190 @@
 package controller;
 
-
-
 import dao.DepartementDAO;
-
 import dao.EmployeeDAO;
-
-import dao.RoleDAO; // 1. IMPORTER LE NOUVEAU DAO
-
 import jakarta.servlet.ServletException;
-
 import jakarta.servlet.annotation.WebServlet;
-
 import jakarta.servlet.http.HttpServlet;
-
 import jakarta.servlet.http.HttpServletRequest;
-
 import jakarta.servlet.http.HttpServletResponse;
-
 import jakarta.servlet.http.HttpSession;
-
 import model.Departement;
-
 import model.Employee;
-
-import model.utils.Role;
-
-
+import model.utils.RoleEnum;
 
 import java.io.IOException;
-
-import java.sql.SQLException;
-
 import java.util.List;
 
-import java.util.Map; // 2. IMPORTER MAP
-
-
-
 @WebServlet(name = "DetailEmployeServlet", urlPatterns = "/detail-employe")
-
 public class DetailEmployeServlet extends HttpServlet {
 
-
-
     private EmployeeDAO employeeDAO;
-
     private DepartementDAO departementDAO;
 
-    private RoleDAO roleDAO; // 3. AJOUTER L'INSTANCE
-
-
-
     @Override
-
     public void init() {
-
         this.employeeDAO = new EmployeeDAO();
-
         this.departementDAO = new DepartementDAO();
-
-        this.roleDAO = new RoleDAO(); // 4. INITIALISER
-
+        // RoleDAO supprimé car inutile pour admin/pas admin
     }
 
-
-
-    /**
-
-     * Affiche le formulaire (soit vide pour "Ajouter", soit pré-rempli pour "Modifier").
-
-     */
-
     @Override
-
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-
         HttpSession session = req.getSession(false);
-
         if (session == null || session.getAttribute("currentUser") == null ||
-
-                !((Employee) session.getAttribute("currentUser")).hasRole(Role.ADMINISTRATOR)) {
-
-            resp.sendRedirect(req.getContextPath() + "/accueil"); // Corrigé: /accueil
-
+                !((Employee) session.getAttribute("currentUser")).hasRole(RoleEnum.ADMINISTRATOR)) {
+            resp.sendRedirect(req.getContextPath() + "/accueil");
             return;
-
         }
 
-
-
         try {
-
-            // 5. CHARGER LES DÉPARTEMENTS ET LES RÔLES
-
             List<Departement> listeDepartements = departementDAO.getAllDepartments();
-
-            Map<Integer, String> allRoles = roleDAO.getAllRoles();
-
             req.setAttribute("listeDepartements", listeDepartements);
 
-            req.setAttribute("allRoles", allRoles); // Transmettre au JSP
-
-
-
-            // Vérifier si on est en mode "Modifier" (un ID est passé)
-
             String idStr = req.getParameter("id");
-
             if (idStr != null) {
-
                 int id = Integer.parseInt(idStr);
-
                 Employee emp = employeeDAO.findEmployeeById(id);
-
-                if (emp != null) {
-
-                    req.setAttribute("employe", emp); // Passer l'employé à modifier
-
-                }
-
+                if (emp != null) req.setAttribute("employe", emp);
             }
-
-            // Si pas d'ID, "employe" reste null, c'est le mode "Ajouter"
-
-
-
-        } catch (SQLException | NumberFormatException e) {
-
+        } catch (Exception e) {
             e.printStackTrace();
-
             req.setAttribute("errorMessage", "Erreur BDD : " + e.getMessage());
-
         }
-
-
-
         req.getRequestDispatcher("/DetailEmploye.jsp").forward(req, resp);
-
     }
 
-
-
-    /**
-
-     * Gère la création (Create) ou la mise à jour (Update).
-
-     */
-
     @Override
-
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-
         HttpSession session = req.getSession(false);
-
-        // On récupère l'utilisateur connecté AVANT
-
         Employee loggedInUser = (session != null) ? (Employee) session.getAttribute("currentUser") : null;
 
-
-
-        if (loggedInUser == null || !loggedInUser.hasRole(Role.ADMINISTRATOR)) {
-
+        if (loggedInUser == null || !loggedInUser.hasRole(RoleEnum.ADMINISTRATOR)) {
             resp.sendError(HttpServletResponse.SC_FORBIDDEN);
-
             return;
-
         }
 
-
-
         String action = req.getParameter("action");
+        int employeeId = 0;
 
-        int employeeId = 0; // Pour stocker l'ID de l'employé créé ou mis à jour
-
-
+        int targetDeptId = Integer.parseInt(req.getParameter("idDepartement"));
 
         try {
-
-            // 1. Récupérer les champs (SANS "grade")
-
             String fname = req.getParameter("fname");
-
             String sname = req.getParameter("sname");
-
             String gender = req.getParameter("gender");
-
             String position = req.getParameter("position");
-
             int idDepartement = Integer.parseInt(req.getParameter("idDepartement"));
 
-
+            // Chargement de l'objet Département
+            Departement deptObj = null;
+            if (idDepartement > 0) {
+                deptObj = departementDAO.findById(idDepartement);
+            }
 
             Employee emp;
 
-
-
             if ("create".equals(action)) {
-
                 String email = req.getParameter("email");
-
                 String password = req.getParameter("password");
 
-
-
                 if (password == null || password.isEmpty() || email == null || email.isEmpty()) {
-
-                    session.setAttribute("errorMessage", "L'email et le mot de passe sont requis pour la création.");
-
-                    doGet(req, resp); // Recharge le formulaire avec les listes
-
+                    session.setAttribute("errorMessage", "Email/Mot de passe requis.");
+                    doGet(req, resp);
                     return;
-
                 }
 
-
-
-                emp = new Employee(fname, sname, gender, email, password, position, null, idDepartement);
-
+                emp = new Employee(fname, sname, gender, email, password, position, deptObj);
                 employeeDAO.createEmployee(emp);
 
-
-
-                // Récupérer l'ID du nouvel employé
-
+                // On récupère l'ID généré
                 Employee createdEmp = employeeDAO.findByEmailAndPassword(email, password);
+                if(createdEmp != null) employeeId = createdEmp.getId();
 
-                employeeId = createdEmp.getId();
-
-
-
-                session.setAttribute("successMessage", "Employé créé avec succès.");
-
-
+                session.setAttribute("successMessage", "Employé créé.");
 
             } else if ("update".equals(action)) {
-
                 int id = Integer.parseInt(req.getParameter("id"));
-
-                employeeId = id; // On a l'ID
-
-
-
+                employeeId = id;
                 Employee existingEmp = employeeDAO.findEmployeeById(id);
 
-                if (existingEmp == null) { /* ... gestion erreur ... */ }
-
-
-
-                emp = new Employee(fname, sname, gender, existingEmp.getEmail(), existingEmp.getPassword(),
-
-                        position, existingEmp.getGrade(), idDepartement);
-
-                emp.setId(id);
-
-
-
-                employeeDAO.updateEmployee(emp);
-
-                session.setAttribute("successMessage", "Employé mis à jour avec succès.");
-
+                if (existingEmp != null) {
+                    emp = new Employee(fname, sname, gender, existingEmp.getEmail(), existingEmp.getPassword(), position, deptObj);
+                    emp.setId(id);
+                    employeeDAO.updateEmployee(emp);
+                    session.setAttribute("successMessage", "Employé mis à jour.");
+                }
             }
 
+            if ("update".equals(action)) {
+                int idToUpdate = Integer.parseInt(req.getParameter("id"));
 
+                // --- VERIFICATION DE SECURITE ---
+                // On regarde si cet employé est chef d'un département
+                String deptDirige = departementDAO.getDepartmentNameIfChef(idToUpdate);
 
-            // --- GESTION DES RÔLES (POUR CREATE ET UPDATE) ---
-
-            if (employeeId > 0) {
-
-                // D'abord, on supprime tous les anciens rôles
-
-                employeeDAO.clearEmployeeRoles(employeeId);
-
-
-
-                // Ensuite, on ajoute les nouveaux
-
-                String[] selectedRoleIds = req.getParameterValues("roles");
-
-
-
-                if (selectedRoleIds != null) {
-
-                    for (String roleIdStr : selectedRoleIds) {
-
-                        int roleId = Integer.parseInt(roleIdStr);
-
-                        employeeDAO.addEmployeeRole(employeeId, roleId);
-
+                // On récupère l'objet du département dirigé pour comparer les ID (optionnel mais plus sûr)
+                Departement deptActuel = null;
+                if (deptDirige != null) {
+                    // Si on a le nom, on suppose qu'il est chef.
+                    // Pour être rigoureux sur l'ID, on pourrait refaire un appel,
+                    // mais ici on va vérifier si l'ID cible correspond au département actuel de l'employé
+                    Employee existing = employeeDAO.findEmployeeById(idToUpdate);
+                    if (existing.getDepartement() != null) {
+                        deptActuel = existing.getDepartement();
                     }
-
                 }
 
+                // BLOCAGE : S'il est chef (deptDirige != null)
+                // ET qu'on essaie de le mettre ailleurs (targetDeptId != son dept actuel)
+                if (deptDirige != null && (deptActuel == null || targetDeptId != deptActuel.getId())) {
 
+                    session.setAttribute("errorMessage",
+                            "Action impossible : " + fname + " " + sname +
+                                    " est actuellement Chef du département '" + deptDirige +
+                                    "'. Vous devez changer le chef de ce département avant de déplacer cet employé.");
 
-                // ***** BLOC DE CORRECTION AJOUTÉ *****
+                    // On redirige vers la page de modification sans sauvegarder
+                    resp.sendRedirect(req.getContextPath() + "/detail-employe?id=" + idToUpdate);
+                    return;
+                }
+                // -------------------------------
 
-                // Si l'admin vient de modifier SON PROPRE profil...
+                Employee existingEmp = employeeDAO.findEmployeeById(idToUpdate);
+                if (existingEmp != null) {
+                    // Récupération de l'objet département cible
+                    Departement targetDeptObj = null;
+                    if (targetDeptId > 0) targetDeptObj = departementDAO.findById(targetDeptId);
 
-                if (loggedInUser.getId() == employeeId) {
+                    // Mise à jour normale
+                    emp = new Employee(fname, sname, gender, existingEmp.getEmail(), existingEmp.getPassword(), position, targetDeptObj);
+                    emp.setId(idToUpdate);
+                    employeeDAO.updateEmployee(emp);
 
-                    // ...on doit recharger son objet depuis la BDD
-
-                    // pour mettre à jour ses droits en session.
-
-                    Employee updatedSelf = employeeDAO.findEmployeeById(employeeId);
-
-                    session.setAttribute("currentUser", updatedSelf);
-
+                    session.setAttribute("successMessage", "Employé mis à jour.");
                 }
 
-                // ***** FIN DU BLOC *****
-
+                employeeId = idToUpdate; // Pour la suite du code (gestion rôles)
             }
 
+            // --- GESTION DU ROLE ADMIN ---
+            if (employeeId > 0) {
+                // Vérifie si la case est cochée (sera "true" ou null)
+                boolean isAdmin = req.getParameter("isAdmin") != null;
 
+                // Appel de la nouvelle méthode DAO qui ne touche qu'au rôle ADMIN
+                employeeDAO.manageAdminRole(employeeId, isAdmin);
 
-        } catch (SQLException | NumberFormatException e) {
+                // Mise à jour de la session si l'admin se modifie lui-même
+                if (loggedInUser.getId() == employeeId) {
+                    session.setAttribute("currentUser", employeeDAO.findEmployeeById(employeeId));
+                }
+            }
 
+        } catch (Exception e) {
             e.printStackTrace();
-
-            session.setAttribute("errorMessage", "Erreur SQL : " + e.getMessage());
-
+            session.setAttribute("errorMessage", "Erreur : " + e.getMessage());
         }
-
-
-
         resp.sendRedirect(req.getContextPath() + "/employes");
-
     }
-
 }

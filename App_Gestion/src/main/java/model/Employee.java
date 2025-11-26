@@ -1,17 +1,17 @@
 package model;
 
 import jakarta.persistence.*;
-import model.utils.Role;
+import model.utils.RoleEnum; // Assure-toi d'avoir cet import si tu gardes hasRole
 import java.util.HashSet;
 import java.util.Set;
 
 @Entity
-@Table(name = "Employee") // Doit correspondre exactement au nom de la table SQL
+@Table(name = "Employee")
 public class Employee {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id") // Nom de la colonne PK dans le SQL
+    @Column(name = "id")
     private int id;
 
     @Column(name = "fname", nullable = false)
@@ -32,140 +32,66 @@ public class Employee {
     @Column(name = "position")
     private String position;
 
-    @Column(name = "grade")
-    private String grade;
+    // --- MODIFICATION MAJEURE ---
+    // On remplace l'ID et le nom "virtuel" par l'objet réel
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "id_departement") // La colonne FK dans la table SQL
+    private Departement departement;
 
-    @Column(name = "id_departement")
-    private int idDepartement;
+    // On supprime "nomDepartement" car on peut faire getDepartement().getNomDepartement()
 
-    // --- CHAMP AJOUTÉ ---
-    // Pas d'annotation @Column, c'est un champ "virtuel"
-    // que le DAO remplit pour nous.
-    private String nomDepartement;
-    // --------------------
-
-    @ElementCollection(targetClass = Role.class, fetch = FetchType.EAGER)
-    @CollectionTable(
-            name = "Employee_Role", // Nom de la table de liaison SQL
-            joinColumns = @JoinColumn(name = "id") // CORRIGÉ : Doit correspondre à ta PK
+    @ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(
+            name = "Employee_Role",
+            joinColumns = @JoinColumn(name = "id"),
+            inverseJoinColumns = @JoinColumn(name = "id_role")
     )
-    @Column(name = "id_role") // Nom de la colonne qui stocke le rôle dans la table de liaison
-    @Enumerated(EnumType.ORDINAL) // Stocke l'index (0, 1, 2...) pour matcher le type INT du SQL
-    private Set<Role> role = new HashSet<>();
+    private Set<RoleEmp> roles = new HashSet<>();
 
-    // Constructeur vide OBLIGATOIRE pour Hibernate
-    public Employee() {
-    }
+    public Employee() {}
 
-    // Constructeur avec paramètres (Mis à jour)
-    public Employee(String fname, String sname, String gender, String email, String password, String position, String grade, int idDepartement) {
+    // Constructeur mis à jour (accepte Departement ou null)
+    public Employee(String fname, String sname, String gender, String email, String password, String position, Departement departement) {
         this.fname = fname;
         this.sname = sname;
         this.gender = gender;
         this.email = email;
         this.password = password;
         this.position = position;
-        this.grade = grade;
-        this.idDepartement = idDepartement;
+        this.departement = departement;
     }
 
-    // --- Méthodes de Rôle ---
-    public void addRole(Role r) {
-        this.role.add(r);
-    }
-    public void removeRole(Role r) {
-        this.role.remove(r);
-    }
-    public boolean hasRole(Role r) {
-        return this.role != null && this.role.contains(r);
-    }
-    public Set<Role> getRoles() {
-        return role;
-    }
-    public void setRoles(Set<Role> roles) {
-        this.role = roles;
+    // Helper pour l'enum
+    public boolean hasRole(RoleEnum roleEnum) {
+        for (RoleEmp r : this.roles) {
+            if (r.getNomRole().equals(roleEnum.name())) {
+                return true;
+            }
+        }
+        return false;
     }
 
-    // --- Getters et Setters ---
+    public void addRole(RoleEmp roleEntity) { this.roles.add(roleEntity); }
+    public Set<RoleEmp> getRoles() { return roles; }
+    public void setRoles(Set<RoleEmp> roles) { this.roles = roles; }
 
-    public int getId() {
-        return id;
-    }
+    // Getters et Setters classiques
+    public int getId() { return id; }
+    public void setId(int id) { this.id = id; }
+    public String getFname() { return fname; }
+    public void setFname(String fname) { this.fname = fname; }
+    public String getSname() { return sname; }
+    public void setSname(String sname) { this.sname = sname; }
+    public String getGender() { return gender; }
+    public void setGender(String gender) { this.gender = gender; }
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
+    public String getPassword() { return password; }
+    public void setPassword(String password) { this.password = password; }
+    public String getPosition() { return position; }
+    public void setPosition(String position) { this.position = position; }
 
-    public void setId(int id) {
-        this.id = id;
-    }
-
-    public String getFname() {
-        return fname;
-    }
-
-    public void setFname(String fname) {
-        this.fname = fname;
-    }
-
-    public String getSname() {
-        return sname;
-    }
-
-    public void setSname(String sname) {
-        this.sname = sname;
-    }
-
-    public String getGender() {
-        return gender;
-    }
-
-    public void setGender(String gender) {
-        this.gender = gender;
-    }
-
-    public String getEmail() {
-        return email;
-    }
-
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
-    public String getPassword() {
-        return password;
-    }
-
-    public void setPassword(String password) {
-        this.password = password;
-    }
-
-    public String getPosition() {
-        return position;
-    }
-
-    public void setPosition(String position) {
-        this.position = position;
-    }
-
-    public String getGrade() {
-        return grade;
-    }
-
-    public void setGrade(String grade) {
-        this.grade = grade;
-    }
-
-    public int getIdDepartement() {
-        return idDepartement;
-    }
-
-    public void setIdDepartement(int idDepartement) {
-        this.idDepartement = idDepartement;
-    }
-
-    // --- GETTER/SETTER AJOUTÉS ---
-    public String getNomDepartement() {
-        return nomDepartement;
-    }
-
-    public void setNomDepartement(String nomDepartement) {
-        this.nomDepartement = nomDepartement;
-    }
+    // --- Nouveaux Getter/Setter pour le département ---
+    public Departement getDepartement() { return departement; }
+    public void setDepartement(Departement departement) { this.departement = departement; }
 }

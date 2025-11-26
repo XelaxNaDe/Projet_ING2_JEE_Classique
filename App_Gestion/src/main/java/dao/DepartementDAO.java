@@ -1,146 +1,120 @@
 package dao;
 
 import model.Departement;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.util.ArrayList;
+import model.Employee;
+import org.hibernate.Session;
+import org.hibernate.Transaction;
 import java.util.List;
-import java.sql.Statement;
 
 public class DepartementDAO {
 
-    public Departement findById(int id) throws SQLException {
-        // ... (ton code findById est correct) ...
-        Departement dept = null;
-        String sql = "SELECT * FROM Departement WHERE id_departement = ?";
+    public Departement findById(int id) {
+        try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+            // Hibernate charge automatiquement le Chef (Employee) grâce au mapping
+            return session.get(Departement.class, id);
+        }
+    }
 
-        try (Connection conn = DatabaseManager.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+    public List<Departement> getAllDepartments() {
+        try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+            // Le LEFT JOIN FETCH permet de charger le chef en même temps pour éviter les problèmes de lazy loading
+            return session.createQuery("SELECT d FROM Departement d LEFT JOIN FETCH d.chefDepartement", Departement.class).list();
+        }
+    }
 
-            ps.setInt(1, id);
+    /**
+     * Vérifie si un employé est chef d'un département.
+     * @return Le nom du département dirigé, ou null s'il n'est pas chef.
+     */
+    public String getDepartmentNameIfChef(int employeeId) {
+        try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+            // On cherche s'il existe un département dont le chef a cet ID
+            String nomDept = session.createQuery(
+                            "SELECT d.nomDepartement FROM Departement d WHERE d.chefDepartement.id = :id", String.class)
+                    .setParameter("id", employeeId)
+                    .uniqueResult(); // Renvoie null si rien trouvé
+            return nomDept;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
 
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    dept = new Departement(
-                            rs.getInt("id_departement"),
-                            rs.getString("nom_departement"),
-                            rs.getInt("id_chef_departement")
-                    );
+    public int createDepartment(String nom, int idChef) {
+        Transaction tx = null;
+        int newId = 0;
+        try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+            tx = session.beginTransaction();
+
+            Departement dept = new Departement();
+            dept.setNomDepartement(nom);
+
+            if (idChef > 0) {
+                Employee chef = session.get(Employee.class, idChef);
+                dept.setChefDepartement(chef);
+            }
+
+            session.persist(dept);
+            tx.commit();
+            newId = dept.getId();
+        } catch (Exception e) {
+            if (tx != null) tx.rollback();
+            e.printStackTrace();
+        }
+        return newId;
+    }
+
+    public void updateDepartment(int id, String nom, int idChef) {
+        Transaction tx = null;
+        try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+            tx = session.beginTransaction();
+
+            Departement dept = session.get(Departement.class, id);
+            if (dept != null) {
+                dept.setNomDepartement(nom);
+
+                if (idChef > 0) {
+                    Employee chef = session.get(Employee.class, idChef);
+                    dept.setChefDepartement(chef);
+                } else {
+                    dept.setChefDepartement(null);
                 }
+                session.merge(dept);
             }
-        }
-        return dept;
-    }
-
-    /**
-     * Récupère TOUS les départements de la BDD.
-     */
-    public List<Departement> getAllDepartments() throws SQLException {
-        List<Departement> departements = new ArrayList<>();
-        // On va aussi chercher le nom du chef de département (LEFT JOIN)
-        String sql = "SELECT d.*, e.fname, e.sname FROM Departement d " +
-                "LEFT JOIN Employee e ON d.id_chef_departement = e.id";
-
-        try (Connection conn = DatabaseManager.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql);
-             ResultSet rs = ps.executeQuery()) {
-
-            while (rs.next()) {
-                Departement dept = new Departement(
-                        rs.getInt("id_departement"),
-                        rs.getString("nom_departement"),
-                        rs.getInt("id_chef_departement")
-                );
-
-                // ***** BLOC SUPPRIMÉ *****
-                // Le code qui appelait setNomChefProjet était ici.
-                // On ajoute juste le département tel quel.
-
-                departements.add(dept);
-            }
-        }
-        return departements;
-    }
-
-    /**
-     * Crée un nouveau département (sans chef pour l'instant).
-     */
-    public int createDepartment(String nom, int idChef) throws SQLException {
-        String sql = "INSERT INTO Departement (nom_departement, id_chef_departement) VALUES (?, ?)";
-        int newId = 0; // Pour stocker l'ID généré
-
-        // On doit utiliser un try-with-resources plus complexe pour récupérer les clés
-        try (Connection conn = DatabaseManager.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-
-            ps.setString(1, nom);
-
-            if (idChef == 0) {
-                ps.setNull(2, java.sql.Types.INTEGER);
-            } else {
-                ps.setInt(2, idChef);
-            }
-
-            ps.executeUpdate();
-
-            // Récupérer l'ID généré
-            try (ResultSet rs = ps.getGeneratedKeys()) {
-                if (rs.next()) {
-                    newId = rs.getInt(1);
-                }
-            }
-        }
-        return newId; // Renvoie l'ID (ou 0 si l'insertion a échoué)
-    }
-
-    /**
-     * Supprime un département de la BDD.
-     */
-    public void deleteDepartment(int id) throws SQLException {
-        // ... (ton code deleteDepartment est correct) ...
-        String sql = "DELETE FROM Departement WHERE id_departement = ?";
-        try (Connection conn = DatabaseManager.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-
-            ps.setInt(1, id);
-            ps.executeUpdate();
-        }
-    }
-    public void updateDepartment(int id, String nom, int idChef) throws SQLException {
-        String sql = "UPDATE Departement SET nom_departement = ?, id_chef_departement = ? WHERE id_departement = ?";
-
-        try (Connection conn = DatabaseManager.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-
-            ps.setString(1, nom);
-
-            // --- CORRECTION ICI ---
-            // Si l'ID est 0, on met NULL. Sinon, on met l'ID.
-            if (idChef == 0) {
-                ps.setNull(2, java.sql.Types.INTEGER);
-            } else {
-                ps.setInt(2, idChef);
-            }
-            // --- FIN CORRECTION ---
-
-            ps.setInt(3, id);
-            ps.executeUpdate();
+            tx.commit();
+        } catch (Exception e) {
+            if (tx != null) tx.rollback();
+            e.printStackTrace();
         }
     }
 
-    public void removeAsChiefFromAnyDepartment(int idChef) throws SQLException {
+    public void deleteDepartment(int id) {
+        Transaction tx = null;
+        try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+            tx = session.beginTransaction();
+            Departement dept = session.get(Departement.class, id);
+            if (dept != null) {
+                session.remove(dept);
+            }
+            tx.commit();
+        } catch (Exception e) {
+            if (tx != null) tx.rollback();
+            e.printStackTrace();
+        }
+    }
 
-        // --- CORRECTION ICI ---
-        // On met NULL (Non assigné) au lieu de 0
-        String sql = "UPDATE Departement SET id_chef_departement = NULL WHERE id_chef_departement = ?";
-
-        try (Connection conn = DatabaseManager.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-
-            ps.setInt(1, idChef);
-            ps.executeUpdate();
+    public void removeAsChiefFromAnyDepartment(int idChef) {
+        Transaction tx = null;
+        try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+            tx = session.beginTransaction();
+            // HQL Update
+            session.createQuery("UPDATE Departement d SET d.chefDepartement = null WHERE d.chefDepartement.id = :idChef")
+                    .setParameter("idChef", idChef)
+                    .executeUpdate();
+            tx.commit();
+        } catch (Exception e) {
+            if (tx != null) tx.rollback();
+            e.printStackTrace();
         }
     }
 }

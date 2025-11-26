@@ -1,31 +1,32 @@
 package dao;
 
-import model.utils.Role; // Assure-toi que c'est le bon chemin pour ton Enum
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import model.RoleEmp;
+import org.hibernate.Session;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class RoleDAO {
 
-    /**
-     * Récupère tous les rôles de la BDD.
-     * Renvoie une Map<Integer, String> (ex: {1: "HEADDEPARTEMENT", 2: "PROJECTMANAGER", ...})
-     */
-    public Map<Integer, String> getAllRoles() throws SQLException {
-        Map<Integer, String> roles = new HashMap<>();
-        String sql = "SELECT * FROM Role";
+    public Map<Integer, String> getAllRoles() {
+        Map<Integer, String> rolesMap = new HashMap<>();
+        try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+            // On récupère les objets RoleEmp (ton entité)
+            List<RoleEmp> roles = session.createQuery("FROM RoleEmp", RoleEmp.class).list();
 
-        try (Connection conn = DatabaseManager.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql);
-             ResultSet rs = ps.executeQuery()) {
-
-            while (rs.next()) {
-                roles.put(rs.getInt("id_role"), rs.getString("nom_role"));
+            for (RoleEmp r : roles) {
+                rolesMap.put(r.getId(), r.getNomRole());
             }
         }
-        return roles;
+        return rolesMap;
+    }
+
+    // Helper pour récupérer un objet Role par son nom
+    public RoleEmp findByName(String roleName) {
+        try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+            return session.createQuery("FROM RoleEmp WHERE nomRole = :nom", RoleEmp.class)
+                    .setParameter("nom", roleName)
+                    .uniqueResult();
+        }
     }
 }

@@ -10,10 +10,9 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import model.Departement;
 import model.Employee;
-import model.utils.Role;
+import model.utils.RoleEnum;
 
 import java.io.IOException;
-import java.sql.SQLException;
 import java.util.List;
 
 @WebServlet(name = "DetailDepartementServlet", urlPatterns = "/detail-departement")
@@ -21,7 +20,6 @@ public class DetailDepartementServlet extends HttpServlet {
 
     private DepartementDAO departementDAO;
     private EmployeeDAO employeeDAO;
-    // PAS de ProjetDAO ici
 
     @Override
     public void init() {
@@ -29,9 +27,6 @@ public class DetailDepartementServlet extends HttpServlet {
         this.employeeDAO = new EmployeeDAO();
     }
 
-    /**
-     * Affiche la page de détail d'un département.
-     */
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         HttpSession session = req.getSession(false);
@@ -41,7 +36,12 @@ public class DetailDepartementServlet extends HttpServlet {
         }
 
         try {
-            int id = Integer.parseInt(req.getParameter("id"));
+            String idStr = req.getParameter("id");
+            if (idStr == null) {
+                resp.sendRedirect(req.getContextPath() + "/departements");
+                return;
+            }
+            int id = Integer.parseInt(idStr);
 
             Departement dept = departementDAO.findById(id);
             if (dept == null) {
@@ -50,102 +50,119 @@ public class DetailDepartementServlet extends HttpServlet {
             }
             req.setAttribute("departement", dept);
 
-            // Pour le <select> du Chef
+            // Liste complète pour le choix du chef
             List<Employee> allEmployees = employeeDAO.getAllEmployees();
             req.setAttribute("allEmployees", allEmployees);
 
-            // Récupérer les MEMBRES ACTUELS du département
+            // Liste des membres actuels pour l'affichage du tableau
             List<Employee> assignedEmployees = employeeDAO.getEmployeesByDepartmentId(id);
             req.setAttribute("assignedEmployees", assignedEmployees);
 
         } catch (NumberFormatException e) {
             resp.sendRedirect(req.getContextPath() + "/departements");
-            return;
-        } catch (SQLException e) {
+        } catch (Exception e) {
             e.printStackTrace();
-            req.setAttribute("errorMessage", "Erreur BDD : " + e.getMessage());
+            req.setAttribute("errorMessage", "Erreur: " + e.getMessage());
         }
 
         req.getRequestDispatcher("/DetailDepartement.jsp").forward(req, resp);
     }
 
-    /**
-     * Gère la mise à jour (UPDATE) et les affectations.
-     */
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         HttpSession session = req.getSession(false);
         Employee user = (session != null) ? (Employee) session.getAttribute("currentUser") : null;
+
         if (user == null) {
             resp.sendError(HttpServletResponse.SC_FORBIDDEN);
             return;
         }
 
         String action = req.getParameter("action");
-        int idDept = Integer.parseInt(req.getParameter("id"));
-        int oldChefId = 0;
-
-        // --- Vérification des permissions (inchangée) ---
-        boolean canModify = false;
-        try {
-            Departement dept = departementDAO.findById(idDept);
-            if (dept == null) { /* ... gestion erreur ... */ }
-            oldChefId = dept.getIdChefDepartement();
-            boolean isAdmin = user.hasRole(Role.ADMINISTRATOR);
-            boolean isHead = user.hasRole(Role.HEADDEPARTEMENT);
-            boolean isThisDeptsHead = (isHead && user.getId() == dept.getIdChefDepartement());
-            canModify = isAdmin || isThisDeptsHead;
-        } catch (SQLException e) { /* ... gestion erreur ... */ }
-        if (!canModify) {
-            resp.sendError(HttpServletResponse.SC_FORBIDDEN);
-            return;
-        }
-        // --- Fin de la vérification ---
+        int idDept = 0;
 
         try {
-            if ("update".equals(action)) {
+            idDept = Integer.parseInt(req.getParameter("id"));
+
+            // --- 1. MISE À JOUR DU DÉPARTEMENT (Admin uniquement) ---
+            if ("update".equals(action) && user.hasRole(RoleEnum.ADMINISTRATOR)) {
                 String nom = req.getParameter("nomDepartement");
-                int newChefId = user.hasRole(Role.ADMINISTRATOR) ? Integer.parseInt(req.getParameter("idChefDepartement")) : oldChefId;
+                int newChefId = Integer.parseInt(req.getParameter("idChefDepartement"));
 
-                // --- LOGIQUE CORRIGÉE ---
-                // 1. Si le chef a changé ET que c'est un admin...
-                if (newChefId != oldChefId && user.hasRole(Role.ADMINISTRATOR)) {
-                    // 1a. On libère le NOUVEAU chef de son poste actuel (s'il en a un)
-                    if (newChefId > 0) {
-                        departementDAO.removeAsChiefFromAnyDepartment(newChefId);
-                    }
-                }
+                // Récupérer l'ancien chef avant la modification pour gérer les rôles
+                Departement currentDept = departementDAO.findById(idDept);
+                Employee oldChef = currentDept.getChefDepartement();
 
-                // 2. On met à jour le département
+                // A. Mise à jour de la table DEPARTEMENT
                 departementDAO.updateDepartment(idDept, nom, newChefId);
 
-                // 3. Gérer les rôles et l'affectation
-                if (newChefId != oldChefId && user.hasRole(Role.ADMINISTRATOR)) {
-                    if (newChefId > 0) {
-                        employeeDAO.assignHeadDepartementRole(newChefId);
-                        employeeDAO.setEmployeeDepartment(newChefId, idDept); // Affecte au nouveau dept
-                    }
-                    if (oldChefId > 0) {
-                        employeeDAO.checkAndRemoveHeadDepartementRole(oldChefId);
-                    }
+                // B. Gestion des Rôles et de l'Affectation (Employee)
+                // Si le chef a changé
+                if (oldChef != null && oldChef.getId() != newChefId) {
+                    // On retire le rôle "HEADDEPARTEMENT" à l'ancien chef
+                    employeeDAO.checkAndRemoveHeadDepartementRole(oldChef.getId());
                 }
-                // --- FIN LOGIQUE ---
 
-                session.setAttribute("successMessage", "Département mis à jour.");
+                if (newChefId > 0) {
+                    // On donne le rôle "HEADDEPARTEMENT" au nouveau chef
+                    employeeDAO.assignHeadDepartementRole(newChefId);
 
+                    // --- C'EST ICI QUE SE FAIT LA MAGIE ---
+                    // "Le chef de département soit un membre du département"
+                    // On force l'affectation de l'employé à ce département
+                    employeeDAO.setEmployeeDepartment(newChefId, idDept);
+                }
+
+                session.setAttribute("successMessage", "Département mis à jour et chef affecté.");
+
+                // --- 2. AJOUTER UN MEMBRE (Admin ou Chef de ce Dept) ---
             } else if ("assignEmployee".equals(action)) {
                 int idEmploye = Integer.parseInt(req.getParameter("idEmploye"));
-                employeeDAO.setEmployeeDepartment(idEmploye, idDept);
-                session.setAttribute("successMessage", "Employé affecté.");
 
+                // --- VERIFICATION ---
+                String deptDirige = departementDAO.getDepartmentNameIfChef(idEmploye);
+
+                // Si l'employé est chef, et que le département qu'il dirige n'est PAS celui actuel (idDept)
+                // Note: departementDAO.findById(idDept).getNomDepartement() pour comparer les noms ou les IDs
+                if (deptDirige != null) {
+                    // On vérifie s'il est chef DU département actuel (ce qui serait bizarre ici car il serait déjà dedans, mais bon)
+                    // Le cas critique : Il est chef de "RH" et on veut le mettre dans "Informatique"
+
+                    // On charge l'employé pour voir son département actuel exact
+                    Employee empCheck = employeeDAO.findEmployeeById(idEmploye);
+                    int currentDeptId = (empCheck.getDepartement() != null) ? empCheck.getDepartement().getId() : 0;
+
+                    if (currentDeptId != idDept) {
+                        session.setAttribute("errorMessage",
+                                "Impossible d'affecter cet employé : Il est actuellement Chef du département '" + deptDirige + "'.");
+                        resp.sendRedirect(req.getContextPath() + "/detail-departement?id=" + idDept);
+                        return;
+                    }
+                }
+                // --------------------
+
+                // Si tout va bien, on l'affecte
+                employeeDAO.setEmployeeDepartment(idEmploye, idDept);
+                session.setAttribute("successMessage", "Employé ajouté au département.");
+
+                // --- 3. RETIRER UN MEMBRE (Admin ou Chef de ce Dept) ---
             } else if ("removeEmployee".equals(action)) {
                 int idEmploye = Integer.parseInt(req.getParameter("idEmploye"));
-                employeeDAO.setEmployeeDepartment(idEmploye, 0); // 0 = Non assigné
-                session.setAttribute("successMessage", "Employé retiré.");
+
+                // On vérifie qu'on n'essaie pas de virer le chef lui-même !
+                Departement currentDept = departementDAO.findById(idDept);
+                if (currentDept.getChefDepartement() != null && currentDept.getChefDepartement().getId() == idEmploye) {
+                    session.setAttribute("errorMessage", "Impossible de retirer le chef du département. Changez le chef d'abord.");
+                } else {
+                    // On retire l'employé (id_departement = null/0)
+                    employeeDAO.setEmployeeDepartment(idEmploye, 0);
+                    session.setAttribute("successMessage", "Employé retiré du département.");
+                }
             }
 
-        } catch (SQLException | NumberFormatException e) {
-            session.setAttribute("errorMessage", "Erreur lors de l'opération : " + e.getMessage());
+        } catch (Exception e) {
+            e.printStackTrace();
+            session.setAttribute("errorMessage", "Erreur : " + e.getMessage());
         }
 
         resp.sendRedirect(req.getContextPath() + "/detail-departement?id=" + idDept);

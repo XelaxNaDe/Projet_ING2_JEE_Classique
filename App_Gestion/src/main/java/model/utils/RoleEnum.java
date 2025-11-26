@@ -1,6 +1,6 @@
 package model.utils;
 
-public enum Role {
+public enum RoleEnum {
     HEADDEPARTEMENT,
     PROJECTMANAGER,
     ADMINISTRATOR,

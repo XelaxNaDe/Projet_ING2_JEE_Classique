@@ -26,7 +26,6 @@ CREATE TABLE Employee (
     email VARCHAR(100) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL,
     position VARCHAR(100),
-    grade VARCHAR(50),
     id_departement INT,
     FOREIGN KEY (id_departement)
         REFERENCES Departement(id_departement)
@@ -108,17 +107,17 @@ INSERT INTO Departement (nom_departement) VALUES
 ('IT & Développement'), 
 ('Ressources Humaines');
 
-INSERT INTO Employee (fname, sname, gender, email, password, position, grade, id_departement)
-VALUES ('Jean', 'Admin', 'M', 'admin@cytech.fr', 'admin123', 'Directeur Technique', 'A1', 1);
+INSERT INTO Employee (fname, sname, gender, email, password, position, id_departement)
+VALUES ('Jean', 'Admin', 'M', 'admin@cytech.fr', 'admin123', 'Directeur Technique', 1);
 
-INSERT INTO Employee (fname, sname, gender, email, password, position, grade, id_departement)
-VALUES ('Sarah', 'Connor', 'F', 'sarah@cytech.fr', 'sarah123', 'Lead Developer', 'B1', 1);
+INSERT INTO Employee (fname, sname, gender, email, password, position, id_departement)
+VALUES ('Sarah', 'Connor', 'F', 'sarah@cytech.fr', 'sarah123', 'Lead Developer', 1);
 
-INSERT INTO Employee (fname, sname, gender, email, password, position, grade, id_departement)
-VALUES ('Mike', 'Ross', 'M', 'mike@cytech.fr', 'mike123', 'Project Lead', 'B2', 1);
+INSERT INTO Employee (fname, sname, gender, email, password, position, id_departement)
+VALUES ('Mike', 'Ross', 'M', 'mike@cytech.fr', 'mike123', 'Project Lead', 1);
 
-INSERT INTO Employee (fname, sname, gender, email, password, position, grade, id_departement)
-VALUES ('Pierre', 'Lambda', 'M', 'pierre@cytech.fr', 'pierre123', 'Développeur Junior', 'C1', 1);
+INSERT INTO Employee (fname, sname, gender, email, password, position, id_departement)
+VALUES ('Pierre', 'Lambda', 'M', 'pierre@cytech.fr', 'pierre123', 'Développeur Junior', 1);
 
 INSERT INTO Employee_Role (id, id_role)
 SELECT e.id, r.id_role 
@@ -160,5 +159,3 @@ INSERT INTO IntStringPayroll (id_payroll, amount, label, type_list) VALUES
 
 INSERT INTO IntStringPayroll (id_payroll, amount, label, type_list) VALUES
 (@id_payroll_feb, 50, 'Retard injustifié', 'DEDUCTION');
-
-SELECT * FROM Employee;

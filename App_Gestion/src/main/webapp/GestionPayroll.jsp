@@ -90,6 +90,11 @@
             background-color: #007bff; color: white; border-radius: 4px;
             display: inline-block;
         }
+        .delete-button {
+            padding: 5px 10px; font-size: 14px; text-decoration: none;
+            background-color: red; color: white; border-radius: 4px;
+            display: inline-block;
+        }
         .add-button {
             padding: 10px 15px; text-decoration: none; background-color: #28a745;
             color: white; border-radius: 5px; display: inline-block; margin-bottom: 20px;
@@ -126,6 +131,8 @@
             <div class="form-row">
                 <div class="form-group">
                     <label for="search_employee">Employé:</label>
+                    <% if (isAdmin) { %>
+                    <%-- AFFICHAGE POUR L'ADMIN : Menu déroulant pour tous les employés --%>
                     <select id="search_employee" name="search_employee">
                         <option value="">Tous les employés</option>
                         <%
@@ -138,6 +145,13 @@
                         }
                         %>
                     </select>
+                    <% } else { %>
+                    <%-- AFFICHAGE POUR L'EMPLOYÉ : Son nom en lecture seule --%>
+                    <input type="hidden" name="search_employee" value="<%= user.getId() %>">
+                    <span style="display: block; padding: 8px; border: 1px solid #ccc; border-radius: 4px; background: #eee;">
+                            <%= user.getFname() %> <%= user.getSname() %> (Vous)
+                        </span>
+                    <% } %>
                 </div>
                 <div class="form-group">
                     <label for="date_debut">Date début:</label>
@@ -149,6 +163,11 @@
                 </div>
                 <button type="submit">Rechercher / Filtrer</button>
             </div>
+            <% if (!isAdmin) { %>
+            <p style="margin-top: 10px; color: #6c757d; font-style: italic;">
+                Filtre restreint à vos propres fiches de paie.
+            </p>
+            <% } %>
         </form>
     </div>
 
@@ -158,7 +177,7 @@
             <thead>
             <tr>
                 <th>ID Fiche</th>
-                <th>Employé</th>
+                <% if (isAdmin) { %><th>Employé</th><% } %>
                 <th>Date</th>
                 <th>Salaire Brut</th>
                 <th>Net à Payer</th>
@@ -167,6 +186,9 @@
             </thead>
             <tbody>
             <%
+                // Détermination du nombre de colonnes pour le colspan
+                int colspan = isAdmin ? 6 : 5;
+
                 if (listePayrolls != null && !listePayrolls.isEmpty()) {
                     for (Payroll payroll : listePayrolls) {
                         // Formatage des valeurs
@@ -176,7 +198,9 @@
             %>
             <tr>
                 <td><%= payroll.getId() %></td>
+                <% if (isAdmin) { %>
                 <td><%= payroll.getEmployee().getFname() %> <%= payroll.getEmployee().getSname() %></td>
+                <% } %>
                 <td><%= formattedDate %></td>
                 <td><%= formattedSalary %></td>
                 <td><%= formattedNetPay %></td>
@@ -189,7 +213,7 @@
                     <form action="${pageContext.request.contextPath}/payroll" method="post">
                         <input type="hidden" name="action" value="delete">
                         <input type="hidden" name="IdPayroll" value="<%= payroll.getId() %>">
-                        <button type="submit" onclick="return confirm('Supprimer cette fiche de paie (ID: <%= payroll.getId() %>) ?');">Supprimer</button>
+                        <button type="submit" class="delete-button" onclick="return confirm('Supprimer cette fiche de paie (ID: <%= payroll.getId() %>) ?');">Supprimer</button>
                     </form>
                     <% } %>
                 </td>
@@ -199,7 +223,7 @@
             } else {
             %>
             <tr>
-                <td colspan="6" style="text-align: center;">Aucune fiche de paie trouvée.</td>
+                <td colspan="<%= colspan %>" style="text-align: center;">Aucune fiche de paie trouvée.</td>
             </tr>
             <% } %>
             </tbody>

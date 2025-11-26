@@ -1,103 +1,101 @@
 package model;
 
-import jakarta.persistence.*;
 import model.utils.IntStringPayroll;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Objects;
 
-@Entity
-@Table(name = "Payroll")
 public class Payroll {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id_payroll")
     private int id;
-
-    // Relation vers l'Employé
-    @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "id") // La colonne FK dans la table Payroll
     private Employee employee;
-
-    @Column(name = "date")
-    private LocalDate date;
-
-    @Column(name = "salary")
-    private int salary;
-
-    @Column(name = "netPay")
+    private final LocalDate date;
+    private final int salary;
+    private List<IntStringPayroll> bonusesList = new ArrayList<>();
+    private List<IntStringPayroll> deductionsList = new ArrayList<>();
     private double netPay;
 
-    // RELATION One-to-Many : Une fiche de paie a plusieurs lignes
-    // cascade = ALL signifie que si on sauvegarde/supprime la fiche, on sauvegarde/supprime ses lignes
-    @OneToMany(mappedBy = "payroll", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
-    private List<IntStringPayroll> allLines = new ArrayList<>();
+    public Payroll() {
+        id =0;
+        employee = null;
+        date = null;
+        salary = 0;
+    }
 
-    // Constructeur vide (Obligatoire Hibernate)
-    public Payroll() {}
 
-    // Constructeur complet
-    public Payroll(Employee employee, LocalDate date, int salary) {
+
+    public Payroll(int id, Employee employee, LocalDate date, int salary, double netPay) {
+        this.id = id;
         this.employee = employee;
         this.date = date;
         this.salary = salary;
-        this.netPay = salary; // Sera recalculé
+        this.netPay = netPay;
     }
 
-    // --- MÉTHODES MÉTIER ---
+    public Payroll(int id, Employee employee, LocalDate date, int salary, double netPay, List<IntStringPayroll> bonusesL, List<IntStringPayroll> deductionsL) {
+        this.id = id;
+        this.employee = employee;
+        this.date = date;
+        this.salary = salary;
+        this.netPay = netPay;
 
-    // Filtre la liste principale pour ne renvoyer que les primes
-    public List<IntStringPayroll> getBonusesList() {
-        if (allLines == null) return new ArrayList<>();
-        return allLines.stream()
-                .filter(line -> "Prime".equalsIgnoreCase(line.getType()))
-                .collect(Collectors.toList());
+        if (Objects.nonNull(bonusesL)) {
+            this.bonusesList.addAll(bonusesL);
+        }
+        if (Objects.nonNull(deductionsL)) {
+            this.deductionsList.addAll(deductionsL);
+        }
     }
 
-    // Filtre la liste principale pour ne renvoyer que les déductions
-    public List<IntStringPayroll> getDeductionsList() {
-        if (allLines == null) return new ArrayList<>();
-        return allLines.stream()
-                .filter(line -> "Déduction".equalsIgnoreCase(line.getType())) // ou "DEDUCTION" selon ta BDD
-                .collect(Collectors.toList());
+    public Payroll(int id, Employee employee, LocalDate date, int salary, List<IntStringPayroll> bonusesL, List<IntStringPayroll> deductionsL) {
+        this.id = id;
+        this.employee = employee;
+        this.date = date;
+        this.salary = salary;
+
+        if (Objects.nonNull(bonusesL)) {
+            this.bonusesList.addAll(bonusesL);
+        }
+        if (Objects.nonNull(deductionsL)) {
+            this.deductionsList.addAll(deductionsL);
+        }
+
+        this.calculateNetPay();
     }
 
-    public void addLine(IntStringPayroll line) {
-        line.setPayroll(this); // Important : lier l'objet enfant au parent
-        this.allLines.add(line);
-        calculateNetPay();
-    }
-
-    public void calculateNetPay() {
+    private void calculateNetPay() {
         double sum = salary;
-        for (IntStringPayroll line : allLines) {
-            if ("Prime".equalsIgnoreCase(line.getType())) {
-                sum += line.getAmount();
-            } else if ("Déduction".equalsIgnoreCase(line.getType())) {
-                sum -= line.getAmount();
-            }
+
+        for (IntStringPayroll bonus : bonusesList) {
+            sum = sum + bonus.getAmount();
+        }
+        for (IntStringPayroll deduction : deductionsList) {
+            sum = sum - deduction.getAmount();
         }
         this.netPay = sum;
     }
 
-    // Getters et Setters simples
-    public int getId() { return id; }
     public void setId(int id) { this.id = id; }
-
-    public Employee getEmployee() { return employee; }
-    public void setEmployee(Employee employee) { this.employee = employee; }
-
-    public LocalDate getDate() { return date; }
-    public void setDate(LocalDate date) { this.date = date; }
-
-    public int getSalary() { return salary; }
-    public void setSalary(int salary) { this.salary = salary; }
-
-    public double getNetPay() { return netPay; }
+    public void setBonusesList(List<IntStringPayroll> bonusesList) {
+        this.bonusesList.clear();
+        this.bonusesList.addAll(bonusesList);
+    }
+    public void setDeductionsList(List<IntStringPayroll> deductionsList) {
+        this.deductionsList.clear();
+        this.deductionsList.addAll(deductionsList);
+    }
     public void setNetPay(double netPay) { this.netPay = netPay; }
+    public void setEmployee(Employee employee) {this.employee = employee; }
 
-    public List<IntStringPayroll> getAllLines() { return allLines; }
-    public void setAllLines(List<IntStringPayroll> allLines) { this.allLines = allLines; }
+    public void addBonusesList(List<IntStringPayroll> bonusesList) { this.bonusesList.addAll(bonusesList);  }
+    public void addDeductionsList(List<IntStringPayroll> deductionsList) { this.deductionsList.addAll(deductionsList); }
+
+    public int getId() { return id; }
+    public Employee getEmployee() { return employee; }
+    public int getEmployeeId() { return employee.getId(); }
+    public LocalDate getDate() { return date; }
+    public int getSalary() { return salary; }
+    public List<IntStringPayroll> getBonusesList() { return bonusesList; }
+    public List<IntStringPayroll> getDeductionsList() { return deductionsList; }
+    public double getNetPay() { return netPay; }
 }

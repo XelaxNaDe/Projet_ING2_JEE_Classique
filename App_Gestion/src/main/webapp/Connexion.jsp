@@ -1,10 +1,3 @@
-<%--
-  Created by IntelliJ IDEA.
-  User: Cytech
-  Date: 10/11/2025
-  Time: 01:02
-  To change this template use File | Settings | File Templates.
---%>
 <%@ page contentType="text/html;charset=UTF-8" language="java" %>
 <html>
 <head>
@@ -17,6 +10,18 @@
 
 <div class="login-container">
     <h1>Connexion</h1>
+
+    <%-- ZONE D'ERREUR : S'affiche seulement si "errorMessage" existe --%>
+    <%
+        String error = (String) request.getAttribute("errorMessage");
+        if (error != null) {
+    %>
+    <div class="msg-error" style="color: white; background-color: #dc3545; padding: 10px; border-radius: 4px; margin-bottom: 15px;">
+        <%= error %>
+    </div>
+    <%
+        }
+    %>
 
     <form action="${pageContext.request.contextPath}/login" method="post">
         <div class="form-group">

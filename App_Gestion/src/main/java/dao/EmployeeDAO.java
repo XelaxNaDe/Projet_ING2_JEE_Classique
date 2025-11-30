@@ -5,18 +5,28 @@ import model.Employee;
 import model.RoleEmp;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
-import org.hibernate.query.Query;
+import org.mindrot.jbcrypt.BCrypt;
 
 import java.util.List;
 
 public class EmployeeDAO {
 
-    public Employee findByEmailAndPassword(String email, String password) {
+    public Employee findByEmailAndPassword(String email, String passwordCandidate) {
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
-            return session.createQuery("FROM Employee E WHERE E.email = :email AND E.password = :pwd", Employee.class)
+            // 1. On cherche l'utilisateur par son EMAIL seulement
+            Employee emp = session.createQuery("FROM Employee E WHERE E.email = :email", Employee.class)
                     .setParameter("email", email)
-                    .setParameter("pwd", password)
                     .uniqueResult();
+
+            if (emp != null) {
+                // 2. On vérifie si le mot de passe en clair correspond au Hash en BDD
+                // Note : Si tes mots de passe en BDD sont encore en clair (ex: "admin123"),
+                // cette fonction retournera false. Il faudra mettre à jour ta BDD avec des hashs.
+                if (BCrypt.checkpw(passwordCandidate, emp.getPassword())) {
+                    return emp; // Mot de passe correct
+                }
+            }
+            return null; // Email inconnu OU mot de passe incorrect
         }
     }
 
@@ -32,29 +42,22 @@ public class EmployeeDAO {
         }
     }
 
-    /**
-     * Recherche avancée avec filtres par ID pour Département et Projet.
-     */
     public List<Employee> getAllEmployeesFull(String searchPrenom, String searchNom, String searchMatricule,
                                               int searchDepartementId, List<Integer> filterProjectEmployeeIds, // Nouveaux params
                                               String filterPoste, String filterRole) {
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
             StringBuilder hql = new StringBuilder("SELECT DISTINCT e FROM Employee e LEFT JOIN FETCH e.roles r LEFT JOIN FETCH e.departement d WHERE 1=1 ");
 
-            // Filtres texte
             if (searchPrenom != null && !searchPrenom.trim().isEmpty()) hql.append("AND e.fname LIKE :fname ");
             if (searchNom != null && !searchNom.trim().isEmpty()) hql.append("AND e.sname LIKE :sname ");
             if (searchMatricule != null && !searchMatricule.trim().isEmpty()) hql.append("AND e.id = :id ");
 
-            // NOUVEAU : Filtre par ID de Département (Dropdown)
             if (searchDepartementId > 0) {
                 hql.append("AND d.id = :deptId ");
             }
 
-            // NOUVEAU : Filtre par Projet (Basé sur la liste des IDs récupérée dans le Servlet)
             if (filterProjectEmployeeIds != null) {
-                if (filterProjectEmployeeIds.isEmpty()) {
-                    // Si un projet est sélectionné mais qu'il n'a aucun employé, on ne doit rien retourner
+                if (filterProjectEmployeeIds.isEmpty()) {// Si un projet est sélectionné mais qu'il n'a aucun employé, on ne doit rien retourner
                     return new java.util.ArrayList<>();
                 }
                 hql.append("AND e.id IN (:empIds) ");
@@ -65,7 +68,6 @@ public class EmployeeDAO {
 
             org.hibernate.query.Query<Employee> query = session.createQuery(hql.toString(), Employee.class);
 
-            // Assignation des paramètres
             if (searchPrenom != null && !searchPrenom.trim().isEmpty()) query.setParameter("fname", "%" + searchPrenom + "%");
             if (searchNom != null && !searchNom.trim().isEmpty()) query.setParameter("sname", "%" + searchNom + "%");
             if (searchMatricule != null && !searchMatricule.trim().isEmpty()) query.setParameter("id", Integer.parseInt(searchMatricule));
@@ -83,7 +85,6 @@ public class EmployeeDAO {
         }
     }
 
-    // CORRECTION getEmployeesByDepartmentId : on compare l'ID de l'objet département
     public List<Employee> getEmployeesByDepartmentId(int idDepartement) {
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
             return session.createQuery("FROM Employee e WHERE e.departement.id = :idDept", Employee.class)
@@ -108,7 +109,11 @@ public class EmployeeDAO {
         Transaction tx = null;
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
             tx = session.beginTransaction();
-            // Si le département est détaché (vient d'une autre session), merge est plus sûr, mais persist ok si l'ID est là.
+
+            // HACHAGE DU MOT DE PASSE AVANT SAUVEGARDE
+            String hashedPassword = BCrypt.hashpw(emp.getPassword(), BCrypt.gensalt());
+            emp.setPassword(hashedPassword);
+
             session.merge(emp);
             tx.commit();
         } catch (Exception e) {
@@ -150,7 +155,6 @@ public class EmployeeDAO {
         }
     }
 
-    // CORRECTION setEmployeeDepartment : Utilisation de getReference pour éviter un SELECT inutile
     public void setEmployeeDepartment(int idEmploye, int idDepartement) {
         Transaction tx = null;
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
@@ -173,41 +177,6 @@ public class EmployeeDAO {
         }
     }
 
-    // --- GESTION DES ROLES (Beaucoup plus simple avec Hibernate) ---
-
-    public void clearEmployeeRoles(int employeeId) {
-        Transaction tx = null;
-        try (Session session = HibernateUtil.getSessionFactory().openSession()) {
-            tx = session.beginTransaction();
-            Employee emp = session.get(Employee.class, employeeId);
-            if (emp != null) {
-                emp.getRoles().clear(); // On vide la collection
-                session.merge(emp);
-            }
-            tx.commit();
-        } catch (Exception e) {
-            if (tx != null) tx.rollback();
-            e.printStackTrace();
-        }
-    }
-
-    public void addEmployeeRole(int employeeId, int roleId) {
-        Transaction tx = null;
-        try (Session session = HibernateUtil.getSessionFactory().openSession()) {
-            tx = session.beginTransaction();
-            Employee emp = session.get(Employee.class, employeeId);
-            RoleEmp role = session.get(RoleEmp.class, roleId);
-
-            if (emp != null && role != null) {
-                emp.getRoles().add(role); // On ajoute à la collection
-                session.merge(emp);
-            }
-            tx.commit();
-        } catch (Exception e) {
-            if (tx != null) tx.rollback();
-            e.printStackTrace();
-        }
-    }
 
     public void manageAdminRole(int employeeId, boolean shouldBeAdmin) {
         Transaction tx = null;
@@ -215,17 +184,14 @@ public class EmployeeDAO {
             tx = session.beginTransaction();
 
             Employee emp = session.get(Employee.class, employeeId);
-            // On cherche l'objet Role correspondant à ADMIN
             RoleEmp adminRole = session.createQuery("FROM RoleEmp WHERE nomRole = :nom", RoleEmp.class)
                     .setParameter("nom", "ADMINISTRATOR")
                     .uniqueResult();
 
             if (emp != null && adminRole != null) {
                 if (shouldBeAdmin) {
-                    // On ajoute si pas déjà présent (Set gère les doublons)
                     emp.getRoles().add(adminRole);
                 } else {
-                    // On retire l'admin role de la liste, mais on garde les autres
                     emp.getRoles().removeIf(r -> r.getNomRole().equals("ADMINISTRATOR"));
                 }
                 session.merge(emp);
@@ -238,7 +204,6 @@ public class EmployeeDAO {
         }
     }
 
-    // Helpers pour les rôles spécifiques (HEAD, PROJECT, ADMIN)
     private void assignSpecificRole(int employeeId, String roleName) {
         Transaction tx = null;
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
@@ -267,8 +232,6 @@ public class EmployeeDAO {
     }
 
     public void checkAndRemoveProjectManagerRole(int employeeId) {
-        // Logique simplifiée : on laisse Hibernate gérer, ou on fait une requête count
-        // Pour l'instant, on garde la logique métier
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
             Long count = session.createQuery("SELECT COUNT(p) FROM Project p WHERE p.chefProjet.id = :id", Long.class)
                     .setParameter("id", employeeId).uniqueResult();
@@ -295,7 +258,6 @@ public class EmployeeDAO {
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
             tx = session.beginTransaction();
             Employee emp = session.get(Employee.class, employeeId);
-            // On cherche le rôle à retirer dans la liste
             emp.getRoles().removeIf(r -> r.getNomRole().equals(roleName));
             session.merge(emp);
             tx.commit();
@@ -303,8 +265,6 @@ public class EmployeeDAO {
             if (tx != null) tx.rollback();
         }
     }
-
-    // Méthodes Email/Password restent similaires (update via session.merge ou HQL)
     public void updateEmail(int id, String email) {
         Transaction tx = null;
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
@@ -315,12 +275,17 @@ public class EmployeeDAO {
         } catch (Exception e) { if(tx!=null) tx.rollback(); }
     }
 
-    public void updatePassword(int id, String pwd) {
+    public void updatePassword(int id, String plainPassword) {
         Transaction tx = null;
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
             tx = session.beginTransaction();
             Employee emp = session.get(Employee.class, id);
-            if(emp != null) { emp.setPassword(pwd); session.merge(emp); }
+            if(emp != null) {
+                // HACHAGE
+                String hashedPassword = BCrypt.hashpw(plainPassword, BCrypt.gensalt());
+                emp.setPassword(hashedPassword);
+                session.merge(emp);
+            }
             tx.commit();
         } catch (Exception e) { if(tx!=null) tx.rollback(); }
     }

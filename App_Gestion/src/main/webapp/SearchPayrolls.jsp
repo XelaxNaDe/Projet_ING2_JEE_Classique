@@ -1,6 +1,6 @@
 <%@ page import="model.Employee" %>
 <%@ page import="model.Payroll" %>
-<%@ page import="model.utils.Role" %>
+<%@ page import="model.utils.RoleEnum" %>
 <%@ page import="java.util.List" %>
 <%@ page import="java.time.format.DateTimeFormatter" %>
 <%@ page import="java.util.Locale" %>
@@ -15,7 +15,7 @@
         return;
     }
 
-    boolean isAdmin = user.hasRole(Role.ADMINISTRATOR);
+    boolean isAdmin = user.hasRole(RoleEnum.ADMINISTRATOR);
     // Récupération des données passées par le Servlet
     List<Payroll> listePayrolls = (List<Payroll>) request.getAttribute("listePayrolls");
     List<Employee> allEmployees = (List<Employee>) request.getAttribute("allEmployees");

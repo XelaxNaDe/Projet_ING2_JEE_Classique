@@ -103,59 +103,63 @@ CREATE TABLE IntStringPayroll (
         ON DELETE CASCADE 
 );
         
-INSERT INTO Departement (nom_departement) VALUES 
-('IT & Développement'), 
-('Ressources Humaines');
+USE GestionRH;
 
-INSERT INTO Employee (fname, sname, gender, email, password, position, id_departement)
-VALUES ('Jean', 'Admin', 'M', 'admin@cytech.fr', 'admin123', 'Directeur Technique', 1);
+INSERT INTO Departement (nom_departement, id_chef_departement) VALUES 
+('Informatique', NULL),
+('Ressources Humaines', NULL),
+('Marketing', NULL);
 
-INSERT INTO Employee (fname, sname, gender, email, password, position, id_departement)
-VALUES ('Sarah', 'Connor', 'F', 'sarah@cytech.fr', 'sarah123', 'Lead Developer', 1);
+INSERT INTO Employee (fname, sname, gender, email, password, position, id_departement) VALUES 
+('Alice', 'Dupont', 'F', 'admin@cytech.fr', '$2a$10$VpjQJ4QSnMqpuexpB3x2U.ZshFq0jZTjHjsxz/tLUgrArfeZ2acwK', 'Directrice Technique', 1),
+('Bob', 'Martin', 'M', 'bob.martin@cytech.fr', '$2a$10$VpjQJ4QSnMqpuexpB3x2U.ZshFq0jZTjHjsxz/tLUgrArfeZ2acwK', 'Développeur Fullstack', 1),('Charlie', 'Durand', 'M', 'charlie.durand@cytech.fr', '$2a$10$Ew.1/x9.1/x9.1/x9.1/x9.1/x9.1/x9.1/x9.1/x9.1/x9.1/x9', 'DRH', 2),
+('David', 'Lefebvre', 'M', 'david.lefebvre@cytech.fr', '$2a$10$VpjQJ4QSnMqpuexpB3x2U.ZshFq0jZTjHjsxz/tLUgrArfeZ2acwK', 'Chargé de Recrutement', 2),
+('Eve', 'Moreau', 'F', 'eve.moreau@cytech.fr', '$2a$10$VpjQJ4QSnMqpuexpB3x2U.ZshFq0jZTjHjsxz/tLUgrArfeZ2acwK', 'Responsable Marketing', 3);
 
-INSERT INTO Employee (fname, sname, gender, email, password, position, id_departement)
-VALUES ('Mike', 'Ross', 'M', 'mike@cytech.fr', 'mike123', 'Project Lead', 1);
+UPDATE Departement SET id_chef_departement = 1 WHERE id_departement = 1;
+UPDATE Departement SET id_chef_departement = 3 WHERE id_departement = 2;
+UPDATE Departement SET id_chef_departement = 5 WHERE id_departement = 3;
 
-INSERT INTO Employee (fname, sname, gender, email, password, position, id_departement)
-VALUES ('Pierre', 'Lambda', 'M', 'pierre@cytech.fr', 'pierre123', 'Développeur Junior', 1);
+INSERT INTO Employee_Role (id, id_role) VALUES 
+(1, 3),
+(1, 1),
+(2, 2),
+(3, 1),
+(3, 2),
+(5, 1);
 
-INSERT INTO Employee_Role (id, id_role)
-SELECT e.id, r.id_role 
-FROM Employee e, Role r 
-WHERE e.email = 'admin@cytech.fr' AND r.nom_role = 'ADMINISTRATOR';
+INSERT INTO Projet (nom_projet, date_debut, date_fin, id_chef_projet, etat) VALUES 
+('Refonte Site Web', '2023-09-01', '2024-03-30', 2, 'En cours'), -- Chef: Bob
+('Campagne Recrutement 2024', '2023-11-01', '2023-12-31', 3, 'En cours'); -- Chef: Charlie
 
-INSERT INTO Employee_Role (id, id_role)
-SELECT e.id, r.id_role 
-FROM Employee e, Role r 
-WHERE e.email = 'sarah@cytech.fr' AND r.nom_role = 'HEADDEPARTEMENT';
+INSERT INTO Employe_Projet (id, id_projet, role_dans_projet) VALUES 
+(1, 1, 'Expert Backend'),
+(2, 1, 'Lead Dev'),
+(3, 2, 'Superviseur'),
+(4, 2, 'Sourcing Candidats'),
+(5, 1, 'Consultante UX/UI'); 
 
-INSERT INTO Employee_Role (id, id_role)
-SELECT e.id, r.id_role 
-FROM Employee e, Role r 
-WHERE e.email = 'mike@cytech.fr' AND r.nom_role = 'PROJECTMANAGER';
+INSERT INTO Payroll (id, date, salary, netPay) VALUES 
+(1, '2023-09-30', 4000, 4200.00),
+(1, '2023-10-31', 4000, 3950.00),
+(1, '2023-11-30', 4200, 4200.00),
+(2, '2023-10-31', 3000, 3100.00),
+(2, '2023-11-30', 3000, 2900.00),
+(3, '2023-11-30', 3500, 3500.00),
+(4, '2023-10-31', 2500, 2500.00),
+(4, '2023-11-30', 2500, 2600.00),
+(5, '2023-11-30', 3800, 3800.00);
 
-UPDATE Departement 
-SET id_chef_departement = (SELECT id FROM Employee WHERE email = 'sarah@cytech.fr')
-WHERE nom_departement = 'IT & Développement';
 
-INSERT INTO Projet (nom_projet, date_debut, date_fin, id_chef_projet, etat) VALUES
-('Refonte Intranet', '2024-01-01', '2024-06-30', (SELECT id FROM Employee WHERE email = 'mike@cytech.fr'), 'En cours'),
-('Migration Cloud', '2024-03-15', '2024-09-15', (SELECT id FROM Employee WHERE email = 'sarah@cytech.fr'), 'En cours');
+INSERT INTO IntStringPayroll (id_payroll, amount, label, type_list) VALUES 
+(1, 300, 'Prime Performance', 'Prime'),
+(1, 100, 'Ticket Restaurant', 'Déduction'),
 
-SET @id_pierre = (SELECT id FROM Employee WHERE email = 'pierre@cytech.fr');
+(2, 50, 'Retard', 'Déduction'),
 
-INSERT INTO Payroll (id, date, salary, netPay) 
-VALUES (@id_pierre, '2024-01-31', 2000, 2150); 
+(4, 200, 'Prime Projet', 'Prime'),
+(4, 100, 'Mutuelle', 'Déduction'),
 
-INSERT INTO Payroll (id, date, salary, netPay) 
-VALUES (@id_pierre, '2024-02-29', 2000, 1950);
+(5, 100, 'Absence', 'Déduction'),
 
-SET @id_payroll_jan = (SELECT id_payroll FROM Payroll WHERE id = @id_pierre AND date = '2024-01-31');
-SET @id_payroll_feb = (SELECT id_payroll FROM Payroll WHERE id = @id_pierre AND date = '2024-02-29');
-
-INSERT INTO IntStringPayroll (id_payroll, amount, label, type_list) VALUES
-(@id_payroll_jan, 200, 'Prime Performance', 'PRIME'),
-(@id_payroll_jan, 50, 'Tickets Restaurant', 'DEDUCTION');
-
-INSERT INTO IntStringPayroll (id_payroll, amount, label, type_list) VALUES
-(@id_payroll_feb, 50, 'Retard injustifié', 'DEDUCTION');
+(8, 100, 'Prime Cooptation', 'Prime');

@@ -18,18 +18,15 @@ public class IntStringPayroll {
     @Column(name = "label")
     private String label;
 
-    @Column(name = "type_list") // "Prime" ou "Déduction"
+    @Column(name = "type_list")
     private String type;
 
-    // RELATION : Lien vers la fiche de paie parente
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_payroll")
     private Payroll payroll;
 
-    // Constructeur vide (Obligatoire Hibernate)
     public IntStringPayroll() {}
 
-    // Constructeur pour la Servlet (avant d'attacher au Payroll)
     public IntStringPayroll(int amount, String label, String type) {
         this.amount = amount;
         this.label = label;
@@ -43,11 +40,9 @@ public class IntStringPayroll {
         this.payroll = payroll;
     }
 
-    // Getters et Setters
-    public int getIdLine() { return idLine; } // Changé de getId_line à getIdLine pour convention camelCase
+    public int getIdLine() { return idLine; }
     public void setIdLine(int idLine) { this.idLine = idLine; }
 
-    // Alias pour compatibilité JSP si nécessaire
     public int getId_line() { return idLine; }
 
     public int getAmount() { return amount; }

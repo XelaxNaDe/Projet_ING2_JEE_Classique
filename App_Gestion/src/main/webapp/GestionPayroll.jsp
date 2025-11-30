@@ -58,7 +58,7 @@
         .filter-form .form-group { flex: 1; min-width: 150px; }
         .filter-form label { font-weight: bold; display: block; margin-bottom: 5px; }
         .filter-form input[type="text"],
-        .filter-form input[type="month"], /* Changé de date à month */
+        .filter-form input[type="month"],
         .filter-form select {
             width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;
         }
@@ -139,10 +139,8 @@
                     <% } %>
                 </div>
 
-                <%-- NOUVEAU FILTRE : MOIS --%>
                 <div class="form-group">
                     <label for="search_month">Mois / Année :</label>
-                    <%-- Ici, la variable searchMonth est maintenant bien définie en haut --%>
                     <input type="month" id="search_month" name="search_month" value="<%= (searchMonth != null) ? searchMonth : "" %>">
                 </div>
 
@@ -169,7 +167,6 @@
                 int colspan = isAdmin ? 6 : 5;
                 if (listePayrolls != null && !listePayrolls.isEmpty()) {
                     for (Payroll payroll : listePayrolls) {
-                        // Utilisation du formatter défini en haut
                         String rawDate = payroll.getDate().format(monthYearFormatter);
                         String formattedPeriod = rawDate.substring(0, 1).toUpperCase() + rawDate.substring(1);
 

@@ -7,24 +7,19 @@
 <%@ page contentType="text/html;charset=UTF-8" language="java" %>
 
 <%
-    // --- Sécurité ---
     Employee user = (Employee) session.getAttribute("currentUser");
     if (user == null) {
         response.sendRedirect(request.getContextPath() + "/connexion.jsp");
         return;
     }
 
-    // NOUVEAU : Déclaration de isAdmin
     boolean isAdmin = user.hasRole(RoleEnum.ADMINISTRATOR);
 
-    // --- Récupération des données ---
     List<Employee> allEmployees = (List<Employee>) request.getAttribute("allEmployees");
-    Payroll payroll = (Payroll) request.getAttribute("payroll"); // Récupéré depuis le Servlet
+    Payroll payroll = (Payroll) request.getAttribute("payroll");
 
-    // --- Détection du mode (Création ou Édition) ---
     boolean isEditMode = (payroll != null);
 
-    // Si on est en edit mode, on prépare la liste combinée des lignes (Primes + Déductions)
     List<IntStringPayroll> allLines = new ArrayList<>();
     if (isEditMode) {
         allLines.addAll(payroll.getBonusesList());
@@ -38,10 +33,8 @@
     <meta charset="UTF-8">
     <link rel="stylesheet" href="${pageContext.request.contextPath}/public/css/style.css">
     <style>
-        /* Styles pour le tableau et les champs */
         .payroll-grid { width: 100%; border-collapse: collapse; margin-top: 15px; }
         .payroll-grid th, .payroll-grid td { border: 1px solid #ccc; padding: 5px; text-align: center; }
-        /* Style pour les champs en lecture seule */
         .payroll-grid input:read-only, .payroll-grid select:disabled,
         input[readonly], select[disabled] { background-color: #eee; cursor: default; }
         .payroll-grid input, .payroll-grid select { width: 100%; border: none; padding: 8px; box-sizing: border-box; }
@@ -63,14 +56,12 @@
 
     <div class="data-form" style="background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
 
-        <%-- Début du formulaire (remplacé par <div> si l'utilisateur n'est pas Admin) --%>
         <% if (isAdmin) { %>
         <form action="${pageContext.request.contextPath}/payroll" method="post" id="payrollForm">
             <% } else { %>
             <div id="payrollForm">
                     <% } %>
 
-                <%-- Champs cachés (toujours inclus pour le JS et les données) --%>
                     <% if (isAdmin) { %>
                 <input type="hidden" name="action" value="<%= isEditMode ? "update" : "create" %>">
                     <% } %>
@@ -84,7 +75,6 @@
                     <div class="form-group" style="flex: 1;">
                         <label for="id_employee">Employé :</label>
                         <% if (!isEditMode && isAdmin) { %>
-                        <%-- Select pour l'Admin en mode création --%>
                         <select id="id_employee" name="id_employee" required style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px;">
                             <option value="">-- Sélectionner un employé --</option>
                             <% if (allEmployees != null) {
@@ -96,7 +86,6 @@
                             <%  } } %>
                         </select>
                         <% } else {
-                            // Affichage pour tous en mode édition, ou pour non-admin en mode création (seul l'utilisateur)
                             Employee selected = user;
                             if(isEditMode) {
                                 for (Employee emp : allEmployees) {
@@ -149,13 +138,11 @@
                     </tr>
                     </thead>
                     <tbody id="tableBody">
-                    <%-- BOUCLE JSP POUR AFFICHER LES LIGNES EXISTANTES --%>
                     <% if (isEditMode && !allLines.isEmpty()) {
                         for (IntStringPayroll line : allLines) {
                     %>
                     <tr>
                         <td>
-                            <%-- Champ caché ID ligne (pour suppression ou update éventuel) --%>
                             <input type="hidden" name="id_line_existing" value="<%= line.getId_line() %>">
                             <input type="text" name="Label" value="<%= line.getLabel() %>" required <%= isAdmin ? "" : "readonly" %>>
                         </td>
@@ -205,8 +192,6 @@
                     </p>
                     <% } %>
                 </div>
-
-                <%-- Fin du formulaire (ou de la <div> de remplacement) --%>
                     <% if (isAdmin) { %>
         </form>
         <% } else { %>
@@ -216,9 +201,7 @@
 </div>
 
 <script>
-    // Ajout d'une ligne vide (Identique avant)
     function addLine() {
-        // Cette fonction n'est appelée que si isAdmin est vrai (car le bouton est caché sinon)
         const tbody = document.getElementById('tableBody');
         const row = document.createElement('tr');
         row.innerHTML = `
@@ -238,14 +221,12 @@
     }
 
     function removeLine(button) {
-        // Cette fonction n'est appelée que si isAdmin est vrai
         button.closest('tr').remove();
         calculateTotal();
     }
 
     function calculateTotal() {
         const salaryInput = document.getElementById('salary');
-        // Vérification pour s'assurer que l'input existe et qu'il n'est pas désactivé pour éviter les erreurs JS
         if (!salaryInput) return;
 
         const baseSalary = parseFloat(salaryInput.value) || 0;
@@ -253,7 +234,6 @@
         let totalDeductions = 0;
 
         document.querySelectorAll('#tableBody tr').forEach(row => {
-            // Pour les non-admins, les selects sont disabled et les inputs readonly, mais on peut quand même lire leurs valeurs
             const amountInput = row.querySelector('input[name="Amount"]');
             const typeSelect = row.querySelector('select[name="Type"]');
 
@@ -270,27 +250,16 @@
         document.getElementById('displayPrimes').textContent = totalPrimes.toFixed(2);
         document.getElementById('displayDeductions').textContent = totalDeductions.toFixed(2);
         document.getElementById('displayNet').textContent = netPay.toFixed(2);
-
-        // Mise à jour du champ caché NetPay (important pour les Admins)
         document.getElementById('netPayInput').value = netPay.toFixed(2);
     }
 
-    // Initialisation
     window.onload = function() {
         const tbody = document.getElementById('tableBody');
-
-        // En mode création, si Admin, on ajoute une ligne vide.
-        // Si la tbody est vide (même en mode édition), on ajoute une ligne (uniquement si Admin, sinon c'est juste la consultation)
-        // Note: La logique de consultation ne devrait pas ajouter de ligne si l'utilisateur normal n'a pas de lignes.
-        // On vérifie isAdmin avant d'appeler addLine.
-
-        const currentIsAdmin = <%= isAdmin %>; // Récupère la valeur JS
-
+        const currentIsAdmin = <%= isAdmin %>;
         if (currentIsAdmin && tbody.children.length === 0) {
             addLine();
         }
 
-        // IMPORTANT : Recalculer les totaux immédiatement pour le mode édition/consultation
         calculateTotal();
     };
 </script>

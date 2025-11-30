@@ -1,7 +1,7 @@
 package model;
 
 import jakarta.persistence.*;
-import model.utils.RoleEnum; // Assure-toi d'avoir cet import si tu gardes hasRole
+import model.utils.RoleEnum;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -32,13 +32,10 @@ public class Employee {
     @Column(name = "position")
     private String position;
 
-    // --- MODIFICATION MAJEURE ---
-    // On remplace l'ID et le nom "virtuel" par l'objet réel
     @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "id_departement") // La colonne FK dans la table SQL
+    @JoinColumn(name = "id_departement")
     private Departement departement;
 
-    // On supprime "nomDepartement" car on peut faire getDepartement().getNomDepartement()
 
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
@@ -50,7 +47,6 @@ public class Employee {
 
     public Employee() {}
 
-    // Constructeur mis à jour (accepte Departement ou null)
     public Employee(String fname, String sname, String gender, String email, String password, String position, Departement departement) {
         this.fname = fname;
         this.sname = sname;
@@ -61,7 +57,6 @@ public class Employee {
         this.departement = departement;
     }
 
-    // Helper pour l'enum
     public boolean hasRole(RoleEnum roleEnum) {
         for (RoleEmp r : this.roles) {
             if (r.getNomRole().equals(roleEnum.name())) {
@@ -75,7 +70,6 @@ public class Employee {
     public Set<RoleEmp> getRoles() { return roles; }
     public void setRoles(Set<RoleEmp> roles) { this.roles = roles; }
 
-    // Getters et Setters classiques
     public int getId() { return id; }
     public void setId(int id) { this.id = id; }
     public String getFname() { return fname; }
@@ -91,7 +85,6 @@ public class Employee {
     public String getPosition() { return position; }
     public void setPosition(String position) { this.position = position; }
 
-    // --- Nouveaux Getter/Setter pour le département ---
     public Departement getDepartement() { return departement; }
     public void setDepartement(Departement departement) { this.departement = departement; }
 }

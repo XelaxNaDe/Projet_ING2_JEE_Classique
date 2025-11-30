@@ -4,7 +4,7 @@ import jakarta.persistence.*;
 import java.util.Date;
 
 @Entity
-@Table(name = "Projet") // Attention à la majuscule/minuscule selon ton SQL
+@Table(name = "Projet")
 public class Project {
 
     @Id
@@ -16,22 +16,20 @@ public class Project {
     private String nomProjet;
 
     @Column(name = "date_debut")
-    @Temporal(TemporalType.DATE) // Précise qu'on ne veut que la DATE (pas l'heure)
+    @Temporal(TemporalType.DATE)
     private Date dateDebut;
 
     @Column(name = "date_fin")
     @Temporal(TemporalType.DATE)
     private Date dateFin;
 
-    // RELATION : Un employé peut gérer plusieurs projets -> ManyToOne
     @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "id_chef_projet") // La colonne FK dans la table Projet
+    @JoinColumn(name = "id_chef_projet")
     private Employee chefProjet;
 
     @Column(name = "etat")
-    private String etat; // Hibernate gère la conversion String <-> ENUM SQL automatiquement
+    private String etat;
 
-    // Constructeur vide OBLIGATOIRE
     public Project() {}
 
     public Project(String nomProjet, Date dateDebut, Date dateFin, Employee chefProjet, String etat) {
@@ -42,7 +40,6 @@ public class Project {
         this.etat = etat;
     }
 
-    // Getters et Setters
     public int getIdProjet() { return idProjet; }
     public void setIdProjet(int idProjet) { this.idProjet = idProjet; }
 

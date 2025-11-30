@@ -10,9 +10,6 @@ public class DepartementDAO {
 
     public Departement findById(int id) {
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
-            // AVANT : return session.get(Departement.class, id);
-
-            // APRES : On force le chargement du chef avec "LEFT JOIN FETCH"
             return session.createQuery(
                             "SELECT d FROM Departement d LEFT JOIN FETCH d.chefDepartement WHERE d.id = :id",
                             Departement.class)
@@ -23,22 +20,16 @@ public class DepartementDAO {
 
     public List<Departement> getAllDepartments() {
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
-            // Le LEFT JOIN FETCH permet de charger le chef en même temps pour éviter les problèmes de lazy loading
             return session.createQuery("SELECT d FROM Departement d LEFT JOIN FETCH d.chefDepartement", Departement.class).list();
         }
     }
 
-    /**
-     * Vérifie si un employé est chef d'un département.
-     * @return Le nom du département dirigé, ou null s'il n'est pas chef.
-     */
     public String getDepartmentNameIfChef(int employeeId) {
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
-            // On cherche s'il existe un département dont le chef a cet ID
             String nomDept = session.createQuery(
                             "SELECT d.nomDepartement FROM Departement d WHERE d.chefDepartement.id = :id", String.class)
                     .setParameter("id", employeeId)
-                    .uniqueResult(); // Renvoie null si rien trouvé
+                    .uniqueResult();
             return nomDept;
         } catch (Exception e) {
             e.printStackTrace();
@@ -113,7 +104,6 @@ public class DepartementDAO {
         Transaction tx = null;
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
             tx = session.beginTransaction();
-            // HQL Update
             session.createQuery("UPDATE Departement d SET d.chefDepartement = null WHERE d.chefDepartement.id = :idChef")
                     .setParameter("idChef", idChef)
                     .executeUpdate();

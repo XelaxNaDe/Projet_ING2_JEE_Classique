@@ -33,15 +33,11 @@ public class DetailPayrollServlet extends HttpServlet {
         }
 
         try {
-            // 1. Charger la liste des employés pour le menu déroulant (pour création)
             List<Employee> employees = employeeDAO.getAllEmployees();
             req.setAttribute("allEmployees", employees);
-
-            // 2. Si un ID est fourni, charger la fiche de paie existante
             String idStr = req.getParameter("id");
             if (idStr != null && !idStr.isEmpty()) {
                 int idPayroll = Integer.parseInt(idStr);
-                // Utilisation du DAO Hibernate
                 Payroll existingPayroll = payrollDAO.findPayrollById(idPayroll);
 
                 req.setAttribute("payroll", existingPayroll);

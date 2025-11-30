@@ -41,15 +41,9 @@ public class ProfilServlet extends HttpServlet {
         }
 
         try {
-            // 1. Récupérer l'objet département directement depuis l'utilisateur (Hibernate l'a chargé)
-            // Plus besoin de departementDAO.findById(id) ici si l'objet est déjà dans user
             req.setAttribute("departement", user.getDepartement());
-
-            // 2. Récupérer les projets de l'utilisateur
             List<Project> projects = projetDAO.getProjectsByEmployeeId(user.getId());
             req.setAttribute("projets", projects);
-
-            // 3. Récupérer TOUS les départements pour le menu <select>
             List<Departement> allDepartments = departementDAO.getAllDepartments();
             req.setAttribute("allDepartments", allDepartments);
 
@@ -81,7 +75,7 @@ public class ProfilServlet extends HttpServlet {
 
                 if(newEmail != null && newEmail.equals(confirmEmail) && employeeDAO.checkPassword(user.getId(), password)) {
                     employeeDAO.updateEmail(user.getId(), newEmail);
-                    user.setEmail(newEmail); // Mise à jour session
+                    user.setEmail(newEmail);
                     session.setAttribute("successMessage", "Email mis à jour.");
                 } else {
                     session.setAttribute("errorMessage", "Erreur dans le formulaire email.");
@@ -94,7 +88,7 @@ public class ProfilServlet extends HttpServlet {
 
                 if(newPwd != null && newPwd.equals(confirmPwd) && employeeDAO.checkPassword(user.getId(), oldPwd)) {
                     employeeDAO.updatePassword(user.getId(), newPwd);
-                    user.setPassword(newPwd); // Mise à jour session
+                    user.setPassword(newPwd);
                     session.setAttribute("successMessage", "Mot de passe mis à jour.");
                 } else {
                     session.setAttribute("errorMessage", "Erreur dans le formulaire mot de passe.");
@@ -103,12 +97,7 @@ public class ProfilServlet extends HttpServlet {
             } else if ("updateDepartment".equals(action)) {
 
                 int newDeptId = Integer.parseInt(req.getParameter("idDepartement"));
-
-                // 1. Mettre à jour la BDD (Le DAO gère l'int via getReference)
                 employeeDAO.setEmployeeDepartment(user.getId(), newDeptId);
-
-                // 2. (CORRECTION MAJEURE) Mettre à jour l'objet en SESSION
-                // Comme Employee stocke un objet Departement, on doit le récupérer
                 if (newDeptId > 0) {
                     Departement newDeptObj = departementDAO.findById(newDeptId);
                     user.setDepartement(newDeptObj);
@@ -116,7 +105,7 @@ public class ProfilServlet extends HttpServlet {
                     user.setDepartement(null);
                 }
 
-                session.setAttribute("currentUser", user); // Force la sauvegarde en session
+                session.setAttribute("currentUser", user);
                 session.setAttribute("successMessage", "Département mis à jour avec succès.");
             }
 
@@ -124,8 +113,6 @@ public class ProfilServlet extends HttpServlet {
             e.printStackTrace();
             session.setAttribute("errorMessage", "Erreur SQL : " + e.getMessage());
         }
-
-        // On redirige vers le doGet (pattern PRG)
         resp.sendRedirect(req.getContextPath() + "/profil");
     }
 }

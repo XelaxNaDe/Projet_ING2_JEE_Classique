@@ -14,9 +14,8 @@ public class LogoutServlet extends HttpServlet {
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         HttpSession session = req.getSession(false);
         if (session != null) {
-            session.invalidate(); // Détruit la session et toutes les données (currentUser, etc.)
+            session.invalidate();
         }
-        // Redirection vers la page de login
         resp.sendRedirect(req.getContextPath() + "/Connexion.jsp");
     }
 }

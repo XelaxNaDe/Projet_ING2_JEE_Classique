@@ -16,20 +16,17 @@
     boolean isAdmin = user.hasRole(RoleEnum.ADMINISTRATOR);
     List<Employee> listeEmployes = (List<Employee>) request.getAttribute("listeEmployes");
 
-    // Listes pour les dropdowns
     List<String> postes = (List<String>) request.getAttribute("postes");
     List<String> roles = (List<String>) request.getAttribute("roles");
     List<Departement> listeDepartements = (List<Departement>) request.getAttribute("listeDepartements");
     List<Project> listeProjets = (List<Project>) request.getAttribute("listeProjets");
 
-    // Valeurs sélectionnées
     String filterPoste = (String) request.getAttribute("filterPoste");
     String filterRole = (String) request.getAttribute("filterRole");
     String searchPrenom = (String) request.getAttribute("searchPrenom");
     String searchNom = (String) request.getAttribute("searchNom");
     String searchMatricule = (String) request.getAttribute("searchMatricule");
 
-    // IDs sélectionnés (Integer peut être null, donc on utilise un cast sûr ou 0)
     Integer searchDepartementId = (Integer) request.getAttribute("searchDepartementId");
     Integer searchProjetId = (Integer) request.getAttribute("searchProjetId");
 
@@ -89,7 +86,6 @@
         <h3>Filtres de recherche</h3>
         <form action="${pageContext.request.contextPath}/employes" method="get">
 
-            <%-- Ligne 1 : Recherche Texte --%>
             <div class="form-row">
                 <div class="form-group">
                     <label for="search_prenom">Prénom:</label>
@@ -105,10 +101,7 @@
                 </div>
             </div>
 
-            <%-- Ligne 2 : Filtres Listes --%>
             <div class="form-row">
-
-                <%-- SELECT DEPARTEMENT --%>
                 <div class="form-group">
                     <label for="search_departement">Département:</label>
                     <select id="search_departement" name="search_departement">
@@ -122,7 +115,6 @@
                     </select>
                 </div>
 
-                <%-- SELECT PROJET --%>
                 <div class="form-group">
                     <label for="search_projet">Projet:</label>
                     <select id="search_projet" name="search_projet">

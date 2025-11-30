@@ -1,235 +1,118 @@
-/* ============================================================
-   1. RESET & BASES
-   ============================================================ */
-:root {
-    --bg-body: #f0f2f5;       /* Gris clair (fond écran) */
-    --bg-container: #ffffff;  /* Blanc (fond cartes) */
-    --text-main: #333333;
-    --primary: #007bff;
-    --border-table: #888888;  /* Bordures de tableau bien visibles */
-}
-
-* {
-    box-sizing: border-box;
-}
 
 body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background-color: var(--bg-body);
-    color: var(--text-main);
+    font-family: Arial, sans-serif;
     margin: 0;
     padding: 0;
-    line-height: 1.5;
 }
-
-a { text-decoration: none; color: inherit; }
-
-/* ============================================================
-   2. HEADER (Barre noire en haut)
-   ============================================================ */
-.header {
-    background-color: #2c3e50;
-    color: white;
-    padding: 15px 30px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-    margin-bottom: 30px;
-}
-
-.header h2 { margin: 0; font-size: 1.2rem; }
-
-/* ============================================================
-   3. CONTAINER UNIFIÉ (Style "Carte Blanche")
-   ============================================================ */
-/* C'est ICI que l'on règle le problème de container.
-   On applique le style "boîte blanche" à .container ET .login-container */
-
-.container, .login-container {
-    background-color: var(--bg-container);
-    border-radius: 8px;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.1); /* Belle ombre */
-    padding: 30px;
-    margin: 0 auto 50px auto; /* Centré horizontalement */
-}
-
-/* Spécificité Page Login : Centrage vertical parfait */
 body.login-page {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: 100vh;
+    background-color: #f0f2f5;
+    display: grid;
+    place-items: center;
+    min-height: 90vh;
 }
+
 .login-container {
-    width: 100%;
-    max-width: 400px;
+    background: #ffffff;
+    padding: 2rem;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    width: 300px;
+    text-align: center;
 }
 
-/* Spécificité Pages Principales : Plus large */
-body.main-page .container {
-    width: 95%;
-    max-width: 1200px;
+.login-container h1 {
+    margin-bottom: 1.5rem;
+    color: #333;
 }
 
-/* TITRES DANS LE CONTAINER */
-.container h1 {
-    margin-top: 0;
-    border-bottom: 2px solid #eee;
-    padding-bottom: 15px;
-    margin-bottom: 25px;
-    color: #444;
-}
-
-/* ============================================================
-   4. NETTOYAGE DES "SOUS-BOITES" (Le problème des div internes)
-   ============================================================ */
-/* On rend transparentes les divs internes pour éviter l'effet "boîte dans une boîte" */
-.card, .form-card, .detail-card, .data-table, .data-form, .filter-form, .project-table, .profile-container {
-    background: transparent;
-    box-shadow: none;
-    border: none;
-    padding: 0;
-    margin-bottom: 30px;
-}
-
-/* On rajoute juste un titre coloré pour séparer les sections */
-.card h3, .data-table h3, .form-card h3, .data-form h3 {
-    color: var(--primary);
-    border-left: 4px solid var(--primary);
-    padding-left: 10px;
-    margin-bottom: 15px;
-}
-
-/* ============================================================
-   5. TABLEAUX (Le style Grille/Excel demandé)
-   ============================================================ */
-table {
-    width: 100%;
-    border-collapse: collapse; /* FUSIONNE les bordures (essentiel) */
-    margin-top: 10px;
-    background-color: white;
-}
-
-/* Bordures FORCÉES sur toutes les cellules */
-th, td {
-    border: 1px solid var(--border-table); /* Bordure grise foncée visible */
-    padding: 10px;
+.form-group {
+    margin-bottom: 1rem;
     text-align: left;
-    vertical-align: middle;
 }
 
-/* En-tête du tableau */
-th {
-    background-color: #343a40; /* Noir/Gris foncé */
-    color: white;
-    font-weight: bold;
-}
-
-/* Lignes zébrées pour la lecture */
-tr:nth-child(even) {
-    background-color: #f2f2f2;
-}
-tr:hover {
-    background-color: #e6f7ff; /* Bleu très clair au survol */
-}
-
-/* --- Cas Spécial : Inputs DANS le tableau (Page Paie) --- */
-.payroll-grid td {
-    padding: 0; /* Pour que l'input colle aux bords */
-}
-.payroll-grid input, .payroll-grid select {
-    border: none; /* On enlève la bordure de l'input car la case du tableau en a déjà une */
-    width: 100%;
-    height: 100%;
-    padding: 10px;
-    background: transparent;
-    border-radius: 0;
-}
-.payroll-grid input:focus {
-    background-color: #fff;
-    outline: 2px solid var(--primary);
-    outline-offset: -2px;
-}
-.total-row {
-    font-size: 1.2em;
-    font-weight: bold;
-    text-align: right;
-    margin-top: 15px;
-    padding-top: 15px;
-    border-top: 3px solid #ccc;
-}
-
-/* ============================================================
-   6. FORMULAIRES & INPUTS (Classiques)
-   ============================================================ */
-.form-group { margin-bottom: 20px; }
-.form-row { display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-end; }
-.form-row .form-group { flex: 1; min-width: 200px; }
-
-label {
+.form-group label {
     display: block;
-    margin-bottom: 8px;
-    font-weight: bold;
+    margin-bottom: 0.5rem;
     color: #555;
 }
 
-/* Style des champs (hors tableau) */
-input[type="text"], input[type="email"], input[type="password"],
-input[type="date"], input[type="month"], input[type="number"],
-select {
+.form-group input {
     width: 100%;
-    padding: 10px;
-    border: 1px solid #aaa; /* Bordure visible */
+    padding: 0.75rem;
+    border: 1px solid #ddd;
     border-radius: 4px;
-    font-size: 1rem;
-    background-color: #fff;
+    box-sizing: border-box;
 }
 
-input:focus, select:focus {
-    border-color: var(--primary);
-    box-shadow: 0 0 5px rgba(0, 123, 255, 0.3);
-    outline: none;
-}
-
-/* Champs lecture seule */
-input[readonly], select[disabled] {
-    background-color: #e9ecef;
-    color: #666;
-    border-color: #ccc;
-    cursor: not-allowed;
-}
-
-/* ============================================================
-   7. BOUTONS & MESSAGES
-   ============================================================ */
-.button-nav {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 15px;
-}
-
-button, .nav-button, .add-button, .detail-button, .print-button {
-    padding: 10px 20px;
+.login-button {
+    width: 100%;
+    padding: 0.75rem;
     border: none;
     border-radius: 4px;
-    cursor: pointer;
-    font-size: 1rem;
-    text-align: center;
+    background-color: #007bff;
     color: white;
-    background-color: var(--primary);
-    display: inline-block;
-    transition: 0.2s;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
 }
 
-button:hover, .nav-button:hover { opacity: 0.9; transform: translateY(-1px); }
+.login-button:hover {
+    background-color: #0056b3;
+}
+body.main-page {
+    background-color: #f9f9f9;
+}
 
-/* Couleurs spécifiques */
-.admin-btn { background-color: #6f42c1; } /* Violet */
-.logout, .btn-danger, .delete-button { background-color: #dc3545; } /* Rouge */
-.add-button { background-color: #28a745; margin-bottom: 15px; } /* Vert */
-.print-button { background-color: #6c757d; } /* Gris */
+.header {
+    background-color: #333;
+    color: white;
+    padding: 1rem 2rem;
+    text-align: center;
+}
 
-/* Messages Alertes */
-.msg-success { background: #d4edda; color: #155724; padding: 15px; border: 1px solid #c3e6cb; border-radius: 4px; margin-bottom: 20px; }
-.msg-error { background: #f8d7da; color: #721c24; padding: 15px; border: 1px solid #f5c6cb; border-radius: 4px; margin-bottom: 20px; }
+.container {
+    max-width: 800px;
+    margin: 2rem auto;
+    padding: 2rem;
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.container h1 {
+    color: #333;
+    border-bottom: 2px solid #f0f0f0;
+    padding-bottom: 1rem;
+}
+
+.button-nav {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1rem;
+    margin-top: 2rem;
+}
+
+.nav-button {
+    display: block;
+    padding: 1rem;
+    background-color: #007bff;
+    color: white;
+    text-align: center;
+    text-decoration: none;
+    border-radius: 5px;
+    font-size: 1.1rem;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+.nav-button:hover {
+    background-color: #0056b3;
+    transform: translateY(-2px);
+}
+
+.nav-button.logout {
+    background-color: #dc3545;
+}
+
+.nav-button.logout:hover {
+    background-color: #c82333;
+}

@@ -14,7 +14,7 @@
         return;
     }
 
-    Project project = (Project) request.getAttribute("projet"); // Attention: "projet" pas "project" (voir Servlet)
+    Project project = (Project) request.getAttribute("projet");
     List<Employee> allEmployees = (List<Employee>) request.getAttribute("allEmployees");
     Map<Employee, String> assignedTeam = (Map<Employee, String>) request.getAttribute("assignedTeam");
 
@@ -26,7 +26,6 @@
     boolean isAdmin = user.hasRole(RoleEnum.ADMINISTRATOR);
     boolean isProjectManager = user.hasRole(RoleEnum.PROJECTMANAGER);
 
-    // CORRECTION 1: Vérification null-safe
     boolean isThisProjectsManager = false;
     if (project.getChefProjet() != null) {
         isThisProjectsManager = (user.getId() == project.getChefProjet().getId());

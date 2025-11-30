@@ -14,7 +14,6 @@ import model.utils.RoleEnum;
 
 import java.io.IOException;
 import java.util.List;
-// Note : import java.sql.SQLException supprimé car inutile avec Hibernate
 
 @WebServlet(name = "GestionDepartementServlet", urlPatterns = "/departements")
 public class GestionDepartementServlet extends HttpServlet {
@@ -66,21 +65,16 @@ public class GestionDepartementServlet extends HttpServlet {
         try {
             if ("create".equals(action)) {
                 String nom = req.getParameter("nomDepartement");
-                // Parse de l'ID venant du formulaire
                 int idChef = Integer.parseInt(req.getParameter("idChefDepartement"));
 
                 if (nom == null || nom.trim().isEmpty()) {
                     session.setAttribute("errorMessage", "Le nom du département est requis.");
                 } else {
-                    // 1. Si le futur chef a déjà un poste, on le retire de l'ancien
                     if (idChef > 0) {
                         departementDAO.removeAsChiefFromAnyDepartment(idChef);
                     }
 
-                    // 2. Création (Le DAO gère la récupération de l'objet Employee via l'ID)
                     int newDeptId = departementDAO.createDepartment(nom, idChef);
-
-                    // 3. Mise à jour des rôles et de l'affectation
                     if (idChef > 0) {
                         employeeDAO.assignHeadDepartementRole(idChef);
                         employeeDAO.setEmployeeDepartment(idChef, newDeptId);
@@ -91,21 +85,15 @@ public class GestionDepartementServlet extends HttpServlet {
 
             } else if ("delete".equals(action)) {
                 int id = Integer.parseInt(req.getParameter("deptId"));
-
-                // Récupération de l'ancien chef AVANT suppression
                 Employee oldChef = null;
                 Departement deptASupprimer = departementDAO.findById(id);
 
                 if (deptASupprimer != null) {
-                    oldChef = deptASupprimer.getChefDepartement(); // Récupère l'objet
+                    oldChef = deptASupprimer.getChefDepartement();
                 }
-
-                // Suppression du département
                 departementDAO.deleteDepartment(id);
 
-                // Mise à jour du rôle de l'ancien chef
-                if (oldChef != null) { // CORRIGÉ : Vérification null explicite
-                    // CORRIGÉ : On passe l'ID, pas l'objet
+                if (oldChef != null) {
                     employeeDAO.checkAndRemoveHeadDepartementRole(oldChef.getId());
                 }
 
@@ -114,7 +102,7 @@ public class GestionDepartementServlet extends HttpServlet {
 
         } catch (NumberFormatException e) {
             session.setAttribute("errorMessage", "ID invalide.");
-        } catch (Exception e) { // CORRIGÉ : Catch global pour Hibernate
+        } catch (Exception e) {
             e.printStackTrace();
             session.setAttribute("errorMessage", "Erreur lors de l'opération : " + e.getMessage());
         }

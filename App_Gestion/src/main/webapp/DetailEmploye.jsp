@@ -14,11 +14,7 @@
     Employee employe = (Employee) request.getAttribute("employe");
     List<Departement> departements = (List<Departement>) request.getAttribute("listeDepartements");
 
-    // On n'a plus besoin de la Map allRoles ici
-
     boolean isEditMode = (employe != null);
-
-    // Vérification si l'employé est admin
     boolean isTargetAdmin = false;
     if (isEditMode) {
         isTargetAdmin = employe.hasRole(RoleEnum.ADMINISTRATOR);
@@ -39,8 +35,6 @@
         .form-card input[type="text"], .form-card input[type="email"], .form-card input[type="password"], .form-card select { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
         .form-card input:read-only { background-color: #eee; cursor: not-allowed; }
         .msg-error { color: red; background: #ffe0e0; padding: 10px; border-radius: 4px; margin-bottom: 15px; border: 1px solid red; }
-
-        /* Style checkbox simple */
         .checkbox-container { display: flex; align-items: center; margin-top: 10px; background: #f9f9f9; padding: 10px; border: 1px solid #ddd; border-radius: 4px; }
         .checkbox-container input { width: auto; margin-right: 10px; transform: scale(1.2); }
         .checkbox-container label { margin: 0; cursor: pointer; }
@@ -117,6 +111,9 @@
                 <input type="checkbox" id="isAdmin" name="isAdmin" value="true" <%= isTargetAdmin ? "checked" : "" %>>
                 <label for="isAdmin">Accorder les droits Administrateur</label>
             </div>
+            <small style="color: #666; display: block; margin-top: 5px;">
+                Note : Les rôles de Chef de Projet et Chef de Département sont attribués automatiquement lors de la création des projets ou départements.
+            </small>
 
             <button type="submit" class="nav-button admin-btn" style="margin-top: 20px; width:100%;">
                 <%= isEditMode ? "Sauvegarder les Modifications" : "Créer l'Employé" %>

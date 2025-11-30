@@ -2,26 +2,22 @@
 <%@ page import="model.Departement" %>
 <%@ page import="model.utils.RoleEnum" %>
 <%@ page import="model.Project" %>
-<%@ page import="model.RoleEmp" %> <%-- IMPORTANT: Import de l'entité RoleEmp --%>
+<%@ page import="model.RoleEmp" %>
 <%@ page import="java.util.List" %>
 <%@ page contentType="text/html;charset=UTF-8" language="java" %>
 
 <%
-    // 1. Récupérer l'utilisateur de la session
     Employee user = (Employee) session.getAttribute("currentUser");
     if (user == null) {
         response.sendRedirect(request.getContextPath() + "/Connexion.jsp");
         return;
     }
 
-    // 2. Récupérer le département (passé par la Servlet)
     Departement departement = (Departement) request.getAttribute("departement");
     String nomDepartement = (departement != null) ? departement.getNomDepartement() : "Non assigné";
 
-    // 3. RÉCUPÉRER LES PROJETS
-    List<Project> projects = (List<Project>) request.getAttribute("projets"); // Attention: "projets" (voir ProfilServlet)
+    List<Project> projects = (List<Project>) request.getAttribute("projets");
 
-    // 4. GESTION DES MESSAGES
     String errorMessage = (String) session.getAttribute("errorMessage");
     String successMessage = (String) session.getAttribute("successMessage");
     session.removeAttribute("errorMessage");

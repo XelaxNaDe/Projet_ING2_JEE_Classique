@@ -22,12 +22,10 @@ public class ProjetDAO {
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
             tx = session.beginTransaction();
 
-            // Utilisation de MERGE au lieu de PERSIST pour gérer l'employé détaché
             Project mergedProject = session.merge(project);
 
             tx.commit();
 
-            // On récupère l'ID de l'objet mergé (qui est connecté à la base)
             id = mergedProject.getIdProjet();
         } catch (Exception e) {
             if (tx != null) tx.rollback();
@@ -127,10 +125,6 @@ public class ProjetDAO {
         }
     }
 
-    /**
-     * Récupère la liste des IDs des employés affectés à un projet.
-     * Utile pour le filtre dans la recherche d'employés.
-     */
     public List<Integer> getEmployeeIdsByProject(int idProjet) {
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
             return session.createNativeQuery("SELECT id FROM Employe_Projet WHERE id_projet = :pid", Integer.class)

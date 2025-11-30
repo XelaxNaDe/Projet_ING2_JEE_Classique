@@ -7,7 +7,6 @@ import java.util.Map;
 
 public class StatsDAO {
 
-    // Helper pour les compteurs simples (Label -> Nombre)
     public Map<String, Number> getCountMap(String sql) {
         Map<String, Number> results = new HashMap<>();
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
@@ -21,7 +20,6 @@ public class StatsDAO {
         return results;
     }
 
-    // NOUVEAU : Helper pour récupérer des listes détaillées (plusieurs colonnes)
     public List<Object[]> getListData(String sql) {
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
             return session.createNativeQuery(sql, Object[].class).list();
@@ -31,8 +29,6 @@ public class StatsDAO {
         }
     }
 
-    // --- STATISTIQUES RH ---
-
     public Map<String, Number> getEmployeesPerDepartment() {
         return getCountMap("SELECT d.nom_departement, COUNT(e.id) FROM Departement d LEFT JOIN Employee e ON d.id_departement = e.id_departement GROUP BY d.id_departement, d.nom_departement");
     }
@@ -41,14 +37,10 @@ public class StatsDAO {
         return getCountMap("SELECT position, COUNT(id) FROM Employee WHERE position IS NOT NULL GROUP BY position");
     }
 
-    // NOUVEAU : Répartition Homme/Femme
     public Map<String, Number> getGenderDistribution() {
         return getCountMap("SELECT gender, COUNT(id) FROM Employee GROUP BY gender");
     }
 
-    // --- STATISTIQUES PROJETS ---
-
-    // NOUVEAU : Détails complets des projets (Nom, Chef, Dates, Etat)
     public List<Object[]> getProjectDetails() {
         String sql = "SELECT p.nom_projet, e.fname, e.sname, p.date_debut, p.date_fin, p.etat " +
                 "FROM Projet p " +

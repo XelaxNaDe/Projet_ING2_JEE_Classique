@@ -51,7 +51,6 @@ public class StatsServlet extends HttpServlet {
             PdfWriter.getInstance(document, resp.getOutputStream());
             document.open();
 
-            // --- EN-TÊTE ---
             Font titleFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 20, new Color(0, 51, 102));
             Paragraph title = new Paragraph("RAPPORT D'ACTIVITÉ RH & PROJETS", titleFont);
             title.setAlignment(Element.ALIGN_CENTER);
@@ -61,25 +60,18 @@ public class StatsServlet extends HttpServlet {
             Paragraph subTitle = new Paragraph("Généré le " + LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")), subTitleFont);
             subTitle.setAlignment(Element.ALIGN_CENTER);
             document.add(subTitle);
-            document.add(new Paragraph(" ")); // Espace
-
-            // --- 1. ETAT DÉTAILLÉ DES PROJETS ---
+            document.add(new Paragraph(" "));
             addProjectDetailsTable(document, statsDAO.getProjectDetails());
-
-            document.add(new Paragraph(" ")); // Espace
-
-            // --- 2. RESSOURCES HUMAINES (2 Tableaux côte à côte) ---
+            document.add(new Paragraph(" "));
             PdfPTable layoutTable = new PdfPTable(2);
             layoutTable.setWidthPercentage(100);
             layoutTable.setWidths(new float[]{1, 1});
 
-            // Colonne Gauche : Départements
             PdfPCell cellDept = new PdfPCell();
             cellDept.setBorder(Rectangle.NO_BORDER);
             addSimpleSection(cellDept, "Effectifs par Département", statsDAO.getEmployeesPerDepartment());
             layoutTable.addCell(cellDept);
 
-            // Colonne Droite : Postes
             PdfPCell cellPoste = new PdfPCell();
             cellPoste.setBorder(Rectangle.NO_BORDER);
             cellPoste.setPaddingLeft(10);
@@ -88,11 +80,10 @@ public class StatsServlet extends HttpServlet {
 
             document.add(layoutTable);
 
-            document.add(new Paragraph(" ")); // Espace
+            document.add(new Paragraph(" "));
 
-            // --- 3. PARITÉ (Genre) ---
             PdfPTable genderTable = new PdfPTable(1);
-            genderTable.setWidthPercentage(50); // Plus petit, centré
+            genderTable.setWidthPercentage(50);
             genderTable.setHorizontalAlignment(Element.ALIGN_LEFT);
             PdfPCell cellGender = new PdfPCell();
             cellGender.setBorder(Rectangle.NO_BORDER);
@@ -107,7 +98,6 @@ public class StatsServlet extends HttpServlet {
         }
     }
 
-    // --- METHODE POUR LE TABLEAU DETAILLE DES PROJETS ---
     private void addProjectDetailsTable(Document doc, List<Object[]> projects) throws DocumentException {
         Font headerFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, Color.WHITE);
         Font contentFont = FontFactory.getFont(FontFactory.HELVETICA, 10);
@@ -116,20 +106,18 @@ public class StatsServlet extends HttpServlet {
         pTitle.setSpacingAfter(10);
         doc.add(pTitle);
 
-        PdfPTable table = new PdfPTable(5); // 5 Colonnes
+        PdfPTable table = new PdfPTable(5);
         table.setWidthPercentage(100);
-        table.setWidths(new float[]{3, 2, 1.5f, 1.5f, 1.5f}); // Largeurs relatives
+        table.setWidths(new float[]{3, 2, 1.5f, 1.5f, 1.5f});
 
-        // En-têtes
         String[] headers = {"Nom du Projet", "Chef de Projet", "Début", "Fin Prévue", "Statut"};
         for (String h : headers) {
             PdfPCell cell = new PdfPCell(new Phrase(h, headerFont));
-            cell.setBackgroundColor(new Color(0, 51, 102)); // Bleu foncé
+            cell.setBackgroundColor(new Color(0, 51, 102));
             cell.setPadding(5);
             table.addCell(cell);
         }
 
-        // Données
         if (projects != null) {
             for (Object[] row : projects) {
                 String nomProjet = (String) row[0];
@@ -143,17 +131,16 @@ public class StatsServlet extends HttpServlet {
                 table.addCell(new Phrase(dateDebut, contentFont));
                 table.addCell(new Phrase(dateFin, contentFont));
 
-                // Cellule Statut avec couleur
                 Font statusFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10, Color.WHITE);
                 PdfPCell statusCell = new PdfPCell(new Phrase(etat, statusFont));
                 statusCell.setHorizontalAlignment(Element.ALIGN_CENTER);
 
                 if ("En cours".equalsIgnoreCase(etat)) {
-                    statusCell.setBackgroundColor(new Color(23, 162, 184)); // Bleu Info
+                    statusCell.setBackgroundColor(new Color(23, 162, 184));
                 } else if ("Terminé".equalsIgnoreCase(etat)) {
-                    statusCell.setBackgroundColor(new Color(40, 167, 69)); // Vert
+                    statusCell.setBackgroundColor(new Color(40, 167, 69));
                 } else if ("Annulé".equalsIgnoreCase(etat)) {
-                    statusCell.setBackgroundColor(new Color(220, 53, 69)); // Rouge
+                    statusCell.setBackgroundColor(new Color(220, 53, 69));
                 } else {
                     statusCell.setBackgroundColor(Color.GRAY);
                 }
@@ -163,8 +150,6 @@ public class StatsServlet extends HttpServlet {
         doc.add(table);
     }
 
-    // --- METHODE POUR LES PETITS TABLEAUX STATS ---
-    // Note: Cette méthode ajoute à une Cellule (pour la mise en page) au lieu du Document directement
     private void addSimpleSection(PdfPCell container, String title, Map<String, Number> data) {
         Font headerFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 11);
 

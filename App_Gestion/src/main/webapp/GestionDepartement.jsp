@@ -49,7 +49,6 @@
     <% if (errorMessage != null) { %> <div class="msg-error"><%= errorMessage %></div> <% } %>
     <% if (successMessage != null) { %> <div class="msg-success"><%= successMessage %></div> <% } %>
 
-    <%-- FORMULAIRE DE CRÉATION (ADMIN SEULEMENT) --%>
     <% if (user.hasRole(RoleEnum.ADMINISTRATOR)) { %>
     <div class="data-form">
         <h3>Ajouter un Département</h3>
@@ -83,7 +82,6 @@
     </div>
     <% } %>
 
-    <%-- TABLE DES DÉPARTEMENTS --%>
     <div class="data-table">
         <h3>Départements Actuels</h3>
         <table>

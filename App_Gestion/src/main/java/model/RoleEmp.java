@@ -1,7 +1,7 @@
 package model;
 
 import jakarta.persistence.*;
-import model.utils.RoleEnum; // Import de ton enum
+import model.utils.RoleEnum;
 
 @Entity
 @Table(name = "Role")
@@ -16,27 +16,21 @@ public class RoleEmp {
     private String nomRole;
 
     public RoleEmp() {}
-
     public RoleEmp(String nomRole) {
         this.nomRole = nomRole;
     }
 
-    // --- L'astuce est ici ---
-    // Méthode utilitaire pour obtenir la version Enum
     public RoleEnum getRoleAsEnum() {
         try {
             return RoleEnum.valueOf(this.nomRole);
         } catch (IllegalArgumentException e) {
-            return null; // Ou une valeur par défaut
+            return null;
         }
     }
-
-    // Méthode pour définir via l'Enum
     public void setRoleFromEnum(RoleEnum roleEnum) {
         this.nomRole = roleEnum.name();
     }
 
-    // Getters et Setters classiques
     public int getId() { return id; }
     public void setId(int id) { this.id = id; }
     public String getNomRole() { return nomRole; }

@@ -8,7 +8,6 @@
 <%@ page contentType="text/html;charset=UTF-8" language="java" %>
 
 <%
-    // --- Initialisation et Sécurité ---
     Employee user = (Employee) session.getAttribute("currentUser");
     if (user == null) {
         response.sendRedirect(request.getContextPath() + "/Connexion.jsp");
@@ -16,26 +15,21 @@
     }
 
     boolean isAdmin = user.hasRole(RoleEnum.ADMINISTRATOR);
-    // Récupération des données passées par le Servlet
     List<Payroll> listePayrolls = (List<Payroll>) request.getAttribute("listePayrolls");
     List<Employee> allEmployees = (List<Employee>) request.getAttribute("allEmployees");
 
-    // Gestion des messages (stockés en session ou requête)
     String errorMessage = (String) session.getAttribute("errorMessage");
     session.removeAttribute("errorMessage");
     String successMessage = (String) session.getAttribute("successMessage");
     session.removeAttribute("successMessage");
     String reqError = (String) request.getAttribute("errorMessage");
 
-    // Récupérer les paramètres de recherche pour les conserver dans le formulaire
     String searchEmployeeId = request.getParameter("search_employee");
     String searchDateDebut = request.getParameter("date_debut");
     String searchDateFin = request.getParameter("date_fin");
 
-    // Formatter pour l'affichage de la date
     DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy", Locale.FRANCE);
 
-    // Formatter pour la monnaie (Euro, France)
     NumberFormat currencyFormatter = NumberFormat.getCurrencyInstance(Locale.FRANCE);
     currencyFormatter.setMaximumFractionDigits(2);
     currencyFormatter.setMinimumFractionDigits(2);
@@ -111,7 +105,6 @@
 <div class="container">
     <h1>Gérer les Fiches de Paie</h1>
 
-    <%-- Affichage des messages --%>
     <% if (reqError != null) { %> <div class="msg-error"><%= reqError %></div> <% } %>
     <% if (errorMessage != null) { %> <div class="msg-error"><%= errorMessage %></div> <% } %>
     <% if (successMessage != null) { %> <div class="msg-success"><%= successMessage %></div> <% } %>
@@ -169,7 +162,6 @@
             <%
                 if (listePayrolls != null && !listePayrolls.isEmpty()) {
                     for (Payroll payroll : listePayrolls) {
-                        // Formatage des valeurs
                         String formattedDate = payroll.getDate().format(dateFormatter);
                         String formattedSalary = currencyFormatter.format(payroll.getSalary());
                         String formattedNetPay = currencyFormatter.format(payroll.getNetPay());

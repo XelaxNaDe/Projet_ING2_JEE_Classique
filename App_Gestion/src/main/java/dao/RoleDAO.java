@@ -11,7 +11,6 @@ public class RoleDAO {
     public Map<Integer, String> getAllRoles() {
         Map<Integer, String> rolesMap = new HashMap<>();
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
-            // On récupère les objets RoleEmp (ton entité)
             List<RoleEmp> roles = session.createQuery("FROM RoleEmp", RoleEmp.class).list();
 
             for (RoleEmp r : roles) {
@@ -21,7 +20,6 @@ public class RoleDAO {
         return rolesMap;
     }
 
-    // Helper pour récupérer un objet Role par son nom
     public RoleEmp findByName(String roleName) {
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
             return session.createQuery("FROM RoleEmp WHERE nomRole = :nom", RoleEmp.class)

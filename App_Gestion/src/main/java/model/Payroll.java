@@ -18,7 +18,7 @@ public class Payroll {
     private int id;
 
     @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "id") // FK vers Employee
+    @JoinColumn(name = "id")
     private Employee employee;
 
     @Column(name = "date")
@@ -30,7 +30,6 @@ public class Payroll {
     @Column(name = "netPay")
     private double netPay;
 
-    // Hibernate gère TOUTES les lignes ici (Primes ET Déductions mélangées)
     @OneToMany(mappedBy = "payroll", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     private List<IntStringPayroll> allDetails = new ArrayList<>();
 
@@ -42,9 +41,6 @@ public class Payroll {
         this.salary = salary;
         this.netPay = netPay;
     }
-
-    // --- Méthodes de compatibilité pour la JSP ---
-    // Ces méthodes filtrent la liste unique 'allDetails' à la volée
 
     public List<IntStringPayroll> getBonusesList() {
         if (allDetails == null) return new ArrayList<>();
@@ -60,9 +56,8 @@ public class Payroll {
                 .collect(Collectors.toList());
     }
 
-    // Méthode pour ajouter une ligne (gère la relation bidirectionnelle)
     public void addDetail(IntStringPayroll detail) {
-        detail.setPayroll(this); // Important pour Hibernate
+        detail.setPayroll(this);
         this.allDetails.add(detail);
     }
 
@@ -70,14 +65,12 @@ public class Payroll {
         this.allDetails.clear();
     }
 
-    // Getters & Setters standards
     public int getId() { return id; }
     public void setId(int id) { this.id = id; }
 
     public Employee getEmployee() { return employee; }
     public void setEmployee(Employee employee) { this.employee = employee; }
 
-    // Helper pour compatibilité
     public int getEmployeeId() { return (employee != null) ? employee.getId() : 0; }
 
     public LocalDate getDate() { return date; }

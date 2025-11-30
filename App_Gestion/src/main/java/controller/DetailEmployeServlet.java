@@ -25,7 +25,6 @@ public class DetailEmployeServlet extends HttpServlet {
     public void init() {
         this.employeeDAO = new EmployeeDAO();
         this.departementDAO = new DepartementDAO();
-        // RoleDAO supprimé car inutile pour admin/pas admin
     }
 
     @Override
@@ -76,7 +75,6 @@ public class DetailEmployeServlet extends HttpServlet {
             String position = req.getParameter("position");
             int idDepartement = Integer.parseInt(req.getParameter("idDepartement"));
 
-            // Chargement de l'objet Département
             Departement deptObj = null;
             if (idDepartement > 0) {
                 deptObj = departementDAO.findById(idDepartement);
@@ -97,7 +95,6 @@ public class DetailEmployeServlet extends HttpServlet {
                 emp = new Employee(fname, sname, gender, email, password, position, deptObj);
                 employeeDAO.createEmployee(emp);
 
-                // On récupère l'ID généré
                 Employee createdEmp = employeeDAO.findByEmailAndPassword(email, password);
                 if(createdEmp != null) employeeId = createdEmp.getId();
 
@@ -119,24 +116,16 @@ public class DetailEmployeServlet extends HttpServlet {
             if ("update".equals(action)) {
                 int idToUpdate = Integer.parseInt(req.getParameter("id"));
 
-                // --- VERIFICATION DE SECURITE ---
-                // On regarde si cet employé est chef d'un département
                 String deptDirige = departementDAO.getDepartmentNameIfChef(idToUpdate);
 
-                // On récupère l'objet du département dirigé pour comparer les ID (optionnel mais plus sûr)
                 Departement deptActuel = null;
                 if (deptDirige != null) {
-                    // Si on a le nom, on suppose qu'il est chef.
-                    // Pour être rigoureux sur l'ID, on pourrait refaire un appel,
-                    // mais ici on va vérifier si l'ID cible correspond au département actuel de l'employé
                     Employee existing = employeeDAO.findEmployeeById(idToUpdate);
                     if (existing.getDepartement() != null) {
                         deptActuel = existing.getDepartement();
                     }
                 }
 
-                // BLOCAGE : S'il est chef (deptDirige != null)
-                // ET qu'on essaie de le mettre ailleurs (targetDeptId != son dept actuel)
                 if (deptDirige != null && (deptActuel == null || targetDeptId != deptActuel.getId())) {
 
                     session.setAttribute("errorMessage",
@@ -144,19 +133,15 @@ public class DetailEmployeServlet extends HttpServlet {
                                     " est actuellement Chef du département '" + deptDirige +
                                     "'. Vous devez changer le chef de ce département avant de déplacer cet employé.");
 
-                    // On redirige vers la page de modification sans sauvegarder
                     resp.sendRedirect(req.getContextPath() + "/detail-employe?id=" + idToUpdate);
                     return;
                 }
-                // -------------------------------
 
                 Employee existingEmp = employeeDAO.findEmployeeById(idToUpdate);
                 if (existingEmp != null) {
-                    // Récupération de l'objet département cible
                     Departement targetDeptObj = null;
                     if (targetDeptId > 0) targetDeptObj = departementDAO.findById(targetDeptId);
 
-                    // Mise à jour normale
                     emp = new Employee(fname, sname, gender, existingEmp.getEmail(), existingEmp.getPassword(), position, targetDeptObj);
                     emp.setId(idToUpdate);
                     employeeDAO.updateEmployee(emp);
@@ -164,18 +149,12 @@ public class DetailEmployeServlet extends HttpServlet {
                     session.setAttribute("successMessage", "Employé mis à jour.");
                 }
 
-                employeeId = idToUpdate; // Pour la suite du code (gestion rôles)
+                employeeId = idToUpdate;
             }
 
-            // --- GESTION DU ROLE ADMIN ---
             if (employeeId > 0) {
-                // Vérifie si la case est cochée (sera "true" ou null)
                 boolean isAdmin = req.getParameter("isAdmin") != null;
-
-                // Appel de la nouvelle méthode DAO qui ne touche qu'au rôle ADMIN
                 employeeDAO.manageAdminRole(employeeId, isAdmin);
-
-                // Mise à jour de la session si l'admin se modifie lui-même
                 if (loggedInUser.getId() == employeeId) {
                     session.setAttribute("currentUser", employeeDAO.findEmployeeById(employeeId));
                 }

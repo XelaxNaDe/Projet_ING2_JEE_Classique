@@ -72,7 +72,6 @@ public class GestionProjetServlet extends HttpServlet {
                 String dateDebutStr = req.getParameter("dateDebut");
                 String dateFinStr = req.getParameter("dateFin");
 
-                // 1. Récupérer l'ID du chef
                 int idChefProjet = 0;
                 try {
                     idChefProjet = Integer.parseInt(req.getParameter("idChefProjet"));
@@ -88,16 +87,13 @@ public class GestionProjetServlet extends HttpServlet {
                 Date dateDebut = formatter.parse(dateDebutStr);
                 Date dateFin = formatter.parse(dateFinStr);
 
-                // 2. Charger l'objet Chef (Hibernate requirement)
                 Employee chefObj = null;
                 if (idChefProjet > 0) {
                     chefObj = employeeDAO.findEmployeeById(idChefProjet);
                 }
 
-                // 3. Créer le projet avec l'objet
                 Project nouveauProject = new Project(projectName, dateDebut, dateFin, chefObj, "En cours");
 
-                // 4. Persister (utilisera merge dans le DAO)
                 int newProjetId = projetDAO.createProject(nouveauProject);
 
                 if (idChefProjet > 0 && newProjetId > 0) {
@@ -113,7 +109,6 @@ public class GestionProjetServlet extends HttpServlet {
 
                 Project projectASupprimer = projetDAO.getProjectById(idProjet);
 
-                // Récupération sécurisée de l'ID de l'ancien chef
                 if (projectASupprimer != null && projectASupprimer.getChefProjet() != null) {
                     oldChefId = projectASupprimer.getChefProjet().getId();
                 }

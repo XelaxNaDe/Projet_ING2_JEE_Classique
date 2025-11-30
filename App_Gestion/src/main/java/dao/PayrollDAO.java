@@ -13,7 +13,6 @@ public class PayrollDAO {
 
     public List<Payroll> getAllPayrolls() {
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
-            // LEFT JOIN FETCH charge l'employé et les détails pour éviter le LazyInitializationException
             return session.createQuery(
                     "SELECT DISTINCT p FROM Payroll p " +
                             "LEFT JOIN FETCH p.employee " +
@@ -80,7 +79,6 @@ public class PayrollDAO {
         int id = 0;
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
             tx = session.beginTransaction();
-            // persist sauvegarde Payroll ET (grâce à CascadeType.ALL) toutes les lignes ajoutées
             session.persist(payroll);
             tx.commit();
             id = payroll.getId();
@@ -91,10 +89,6 @@ public class PayrollDAO {
         return id;
     }
 
-    /**
-     * Recherche avancée.
-     * @param monthStr Format attendu "YYYY-MM" (ex: "2024-03")
-     */
     public List<Payroll> searchPayrolls(String employeeIdStr, String monthStr) {
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
             StringBuilder hql = new StringBuilder("SELECT DISTINCT p FROM Payroll p LEFT JOIN FETCH p.employee LEFT JOIN FETCH p.allDetails WHERE 1=1 ");
@@ -103,14 +97,10 @@ public class PayrollDAO {
                 hql.append("AND p.employee.id = :eid ");
             }
 
-            // FILTRE PAR MOIS : On compare l'année et le mois de la date
             if (monthStr != null && !monthStr.isEmpty()) {
-                // monthStr est "2024-03". On peut parser ou utiliser des fonctions SQL
-                // Ici on va parser pour extraire année et mois
                 hql.append("AND YEAR(p.date) = :year AND MONTH(p.date) = :month ");
             }
 
-            // Tri par date décroissante (plus récent en premier)
             hql.append("ORDER BY p.date DESC");
 
             Query<Payroll> query = session.createQuery(hql.toString(), Payroll.class);
@@ -136,19 +126,13 @@ public class PayrollDAO {
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
             tx = session.beginTransaction();
 
-            // 1. Charger l'objet persistant
             Payroll existingPayroll = session.get(Payroll.class, payrollData.getId());
 
             if (existingPayroll != null) {
-                // 2. Mise à jour des champs simples
                 existingPayroll.setDate(payrollData.getDate());
                 existingPayroll.setSalary(payrollData.getSalary());
                 existingPayroll.setNetPay(payrollData.getNetPay());
-                // Attention : Si l'employé change, il faut charger le nouvel objet Employee via session.get(Employee.class, id)
-                // Ici on suppose que l'ID employé ne change pas ou que payrollData a le bon objet Employee
-
-                // 3. Gestion des lignes : On vide et on remplace
-                existingPayroll.clearDetails(); // orphanRemoval=true supprimera les anciennes lignes en BDD
+                existingPayroll.clearDetails();
 
                 for (IntStringPayroll line : newLines) {
                     existingPayroll.addDetail(line);

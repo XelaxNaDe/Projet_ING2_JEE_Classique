@@ -5,19 +5,15 @@
 <%@ page contentType="text/html;charset=UTF-8" language="java" %>
 
 <%
-    // 1. Récupération de l'utilisateur
     Employee user = (Employee) session.getAttribute("currentUser");
     if (user == null) {
         response.sendRedirect(request.getContextPath() + "/Connexion.jsp");
         return;
     }
 
-    // 2. RÉCUPÉRATION DES LISTES
-    // ATTENTION : Le nom de l'attribut doit correspondre à celui dans la Servlet ("listeProjets")
     List<Project> projects = (List<Project>) request.getAttribute("listeProjets");
     List<Employee> allEmployees = (List<Employee>) request.getAttribute("allEmployees");
 
-    // 3. Gestion des messages
     String errorMessage = (String) session.getAttribute("errorMessage");
     String successMessage = (String) session.getAttribute("successMessage");
     session.removeAttribute("errorMessage");

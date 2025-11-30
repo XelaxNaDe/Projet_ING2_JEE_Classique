@@ -84,13 +84,12 @@ public class DetailProjetServlet extends HttpServlet {
             return;
         }
 
-        // --- Vérification des permissions (Identique à ton code) ---
         boolean canModify = false;
         Employee oldChef = null;
         try {
             Project project = projetDAO.getProjectById(idProjet);
             if (project != null) {
-                oldChef = project.getChefProjet(); // L'objet chef actuel
+                oldChef = project.getChefProjet();
 
                 boolean isAdmin = user.hasRole(RoleEnum.ADMINISTRATOR);
                 boolean isProjectManager = user.hasRole(RoleEnum.PROJECTMANAGER);
@@ -109,7 +108,6 @@ public class DetailProjetServlet extends HttpServlet {
         }
 
         try {
-            // --- ACTION UPDATE ---
             if ("update".equals(action)) {
                 String nom = req.getParameter("nomProjet");
                 String etat = req.getParameter("etat");
@@ -130,35 +128,26 @@ public class DetailProjetServlet extends HttpServlet {
                 Date dateDebut = formatter.parse(dateDebutStr);
                 Date dateFin = formatter.parse(dateFinStr);
 
-                // Mise à jour de l'objet Projet
                 Project projectMisAJour = new Project(nom, dateDebut, dateFin, newChefEmployee, etat);
-                projectMisAJour.setIdProjet(idProjet); // IMPORTANT : Ne pas oublier l'ID !
+                projectMisAJour.setIdProjet(idProjet);
                 projetDAO.updateProject(projectMisAJour);
 
-                // --- GESTION COHERENCE CHEF / EQUIPE ---
                 int oldChefId = (oldChef != null) ? oldChef.getId() : 0;
 
-                // Si le chef a changé
                 if (newChefId != oldChefId && user.hasRole(RoleEnum.ADMINISTRATOR)) {
-
-                    // 1. Gérer les rôles globaux (PROJECTMANAGER)
                     if (oldChefId > 0) employeeDAO.checkAndRemoveProjectManagerRole(oldChefId);
                     if (newChefId > 0) employeeDAO.assignProjectManagerRole(newChefId);
 
-                    // 2. Gérer l'équipe du projet
                     if (newChefId > 0) {
-                        // Le nouveau chef REJOINT l'équipe automatiquement avec le rôle "Chef de Projet" [cite: 1]
                         projetDAO.assignEmployeeToProject(idProjet, newChefId, "Chef de Projet");
                     }
                     if (oldChefId > 0) {
-                        // L'ancien chef est retiré de l'équipe (ou on pourrait le passer en simple membre)
                         projetDAO.removeEmployeeFromProject(idProjet, oldChefId);
                     }
                 }
 
                 session.setAttribute("successMessage", "Projet mis à jour.");
 
-                // --- ACTION AFFECTER EMPLOYE ---
             } else if ("assignEmployee".equals(action)) {
                 int idEmploye = Integer.parseInt(req.getParameter("idEmploye"));
                 String roleDansProjet = req.getParameter("role_dans_projet");
@@ -166,11 +155,9 @@ public class DetailProjetServlet extends HttpServlet {
                 projetDAO.assignEmployeeToProject(idProjet, idEmploye, roleDansProjet);
                 session.setAttribute("successMessage", "Employé affecté au projet.");
 
-                // --- ACTION RETIRER EMPLOYE ---
             } else if ("removeEmployee".equals(action)) {
                 int idEmploye = Integer.parseInt(req.getParameter("idEmploye"));
 
-                // --- SECURITÉ : On vérifie si c'est le chef --- [cite: 1]
                 Project currentProject = projetDAO.getProjectById(idProjet);
                 boolean isChef = (currentProject.getChefProjet() != null && currentProject.getChefProjet().getId() == idEmploye);
 

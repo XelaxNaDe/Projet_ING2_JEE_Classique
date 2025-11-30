@@ -46,8 +46,6 @@ public class GestionPayrollServlet extends HttpServlet {
             String dateDebut = req.getParameter("date_debut");
             String dateFin = req.getParameter("date_fin");
             List<Payroll> listePayrolls;
-
-            // Vérification du rôle (adaptez RoleEnum.ADMINISTRATOR selon votre projet)
             boolean isAdmin = user.hasRole(RoleEnum.ADMINISTRATOR);
 
             if (isAdmin) {
@@ -64,7 +62,6 @@ public class GestionPayrollServlet extends HttpServlet {
                 listePayrolls = payrollDAO.findPayrollByEmployee(user.getId());
             }
 
-            // Récupérer la liste des employés pour le filtre (Admin uniquement)
             List<Employee> allEmployees = new ArrayList<>();
             if (isAdmin) {
                 allEmployees = employeeDAO.getAllEmployees();
@@ -97,7 +94,6 @@ public class GestionPayrollServlet extends HttpServlet {
 
         try {
             if ("create".equals(action)) {
-                // 1. Données principales
                 int idEmployee = Integer.parseInt(req.getParameter("id_employee"));
                 String dateStr = req.getParameter("date");
                 int salary = Integer.parseInt(req.getParameter("salary"));
@@ -106,7 +102,6 @@ public class GestionPayrollServlet extends HttpServlet {
                 Employee emp = employeeDAO.findEmployeeById(idEmployee);
                 Payroll payroll = new Payroll(emp, LocalDate.parse(dateStr), salary, netPay);
 
-                // 2. Lignes (Primes/Déductions)
                 String[] reqAmount = req.getParameterValues("Amount");
                 String[] reqLabel = req.getParameterValues("Label");
                 String[] reqType = req.getParameterValues("Type");
@@ -117,13 +112,10 @@ public class GestionPayrollServlet extends HttpServlet {
                         int amount = Integer.parseInt(reqAmount[i]);
                         String label = (reqLabel != null && i < reqLabel.length) ? reqLabel[i] : "";
                         String type = (reqType != null && i < reqType.length) ? reqType[i] : "Prime";
-
-                        // Ajout à l'objet Payroll (la liaison parent-enfant se fait dans addDetail)
                         payroll.addDetail(new IntStringPayroll(amount, label, type));
                     } catch (NumberFormatException ignored) {}
                 }
 
-                // 3. Sauvegarde via Hibernate (cascade)
                 int idPay = payrollDAO.createPayroll(payroll);
                 session.setAttribute("successMessage", "Fiche de paie (ID: " + idPay + ") créée avec succès!");
 
@@ -134,13 +126,10 @@ public class GestionPayrollServlet extends HttpServlet {
                 int salary = Integer.parseInt(req.getParameter("salary"));
                 double netPay = Double.parseDouble(req.getParameter("netPay"));
 
-                // Pour l'update, on crée un objet temporaire ou on récupère l'existant.
-                // Ici, on passe les nouvelles données au DAO
                 Employee emp = employeeDAO.findEmployeeById(idEmployee);
                 Payroll pUpdate = new Payroll(emp, LocalDate.parse(dateStr), salary, netPay);
                 pUpdate.setId(idPayroll);
 
-                // Reconstitution de la liste des lignes
                 List<IntStringPayroll> newLines = new ArrayList<>();
                 String[] reqAmount = req.getParameterValues("Amount");
                 String[] reqLabel = req.getParameterValues("Label");

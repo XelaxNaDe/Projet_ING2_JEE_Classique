@@ -8,7 +8,6 @@
 <%@ page contentType="text/html;charset=UTF-8" language="java" %>
 
 <%
-    // --- Initialisation et Sécurité ---
     Employee user = (Employee) session.getAttribute("currentUser");
     if (user == null) {
         response.sendRedirect(request.getContextPath() + "/Connexion.jsp");
@@ -17,29 +16,21 @@
 
     boolean isAdmin = user.hasRole(RoleEnum.ADMINISTRATOR);
 
-    // Récupération des données passées par le Servlet
     List<Payroll> listePayrolls = (List<Payroll>) request.getAttribute("listePayrolls");
     List<Employee> allEmployees = (List<Employee>) request.getAttribute("allEmployees");
 
-    // Gestion des messages
     String errorMessage = (String) session.getAttribute("errorMessage");
     session.removeAttribute("errorMessage");
     String successMessage = (String) session.getAttribute("successMessage");
     session.removeAttribute("successMessage");
     String reqError = (String) request.getAttribute("errorMessage");
 
-    // --- CORRECTION : Déclaration des variables manquantes ---
 
-    // 1. Récupération des paramètres de recherche
     String searchEmployeeId = request.getParameter("search_employee");
-    // C'est cette ligne qui manquait pour l'erreur "searchMonth cannot be resolved"
     String searchMonth = request.getParameter("search_month");
 
-    // 2. Déclaration du Formatter de date
-    // C'est cette ligne qui manquait pour l'erreur "monthYearFormatter cannot be resolved"
     DateTimeFormatter monthYearFormatter = DateTimeFormatter.ofPattern("MMMM yyyy", Locale.FRANCE);
 
-    // 3. Formatter pour la monnaie
     NumberFormat currencyFormatter = NumberFormat.getCurrencyInstance(Locale.FRANCE);
     currencyFormatter.setMaximumFractionDigits(2);
     currencyFormatter.setMinimumFractionDigits(2);

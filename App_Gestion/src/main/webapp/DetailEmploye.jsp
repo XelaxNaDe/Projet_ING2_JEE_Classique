@@ -112,15 +112,11 @@
                 <% } } %>
             </select>
 
-            <%-- NOUVEAU SYSTEME DE ROLES SIMPLIFIÉ --%>
             <label>Permissions :</label>
             <div class="checkbox-container">
                 <input type="checkbox" id="isAdmin" name="isAdmin" value="true" <%= isTargetAdmin ? "checked" : "" %>>
                 <label for="isAdmin">Accorder les droits Administrateur</label>
             </div>
-            <small style="color: #666; display: block; margin-top: 5px;">
-                Note : Les rôles de Chef de Projet et Chef de Département sont attribués automatiquement lors de la création des projets ou départements.
-            </small>
 
             <button type="submit" class="nav-button admin-btn" style="margin-top: 20px; width:100%;">
                 <%= isEditMode ? "Sauvegarder les Modifications" : "Créer l'Employé" %>

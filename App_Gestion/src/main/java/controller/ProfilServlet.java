@@ -78,7 +78,7 @@ public class ProfilServlet extends HttpServlet {
                     user.setEmail(newEmail);
                     session.setAttribute("successMessage", "Email mis à jour.");
                 } else {
-                    session.setAttribute("errorMessage", "Erreur dans le formulaire email.");
+                    session.setAttribute("errorMessage", "Erreur : Emails ne correspondent pas ou mot de passe incorrect.");
                 }
 
             } else if ("updatePassword".equals(action)) {
@@ -87,12 +87,20 @@ public class ProfilServlet extends HttpServlet {
                 String oldPwd = req.getParameter("oldPassword");
 
                 if(newPwd != null && newPwd.equals(confirmPwd) && employeeDAO.checkPassword(user.getId(), oldPwd)) {
-                    employeeDAO.updatePassword(user.getId(), newPwd);
-                    user.setPassword(newPwd);
-                    session.setAttribute("successMessage", "Mot de passe mis à jour.");
+
+                    String newHash = employeeDAO.updatePassword(user.getId(), newPwd);
+
+                    if (newHash != null) {
+                        user.setPassword(newHash);
+                        session.setAttribute("successMessage", "Mot de passe mis à jour avec succès.");
+                    } else {
+                        session.setAttribute("errorMessage", "Erreur technique lors de la mise à jour.");
+                    }
                 } else {
-                    session.setAttribute("errorMessage", "Erreur dans le formulaire mot de passe.");
+                    session.setAttribute("errorMessage", "Erreur : Les nouveaux mots de passe ne correspondent pas ou l'ancien est incorrect.");
                 }
+
+
 
             } else if ("updateDepartment".equals(action)) {
 

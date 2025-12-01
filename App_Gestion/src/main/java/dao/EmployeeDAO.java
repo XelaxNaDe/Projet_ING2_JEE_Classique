@@ -5,18 +5,24 @@ import model.Employee;
 import model.RoleEmp;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
-import org.hibernate.query.Query;
+import org.mindrot.jbcrypt.BCrypt;
 
 import java.util.List;
 
 public class EmployeeDAO {
 
-    public Employee findByEmailAndPassword(String email, String password) {
+    public Employee findByEmailAndPassword(String email, String passwordCandidate) {
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
-            return session.createQuery("FROM Employee E WHERE E.email = :email AND E.password = :pwd", Employee.class)
+            Employee emp = session.createQuery("FROM Employee E WHERE E.email = :email", Employee.class)
                     .setParameter("email", email)
-                    .setParameter("pwd", password)
                     .uniqueResult();
+
+            if (emp != null) {
+                if (BCrypt.checkpw(passwordCandidate, emp.getPassword())) {
+                    return emp; // Mot de passe correct
+                }
+            }
+            return null; // Email inconnu OU mot de passe incorrect
         }
     }
 
@@ -33,7 +39,7 @@ public class EmployeeDAO {
     }
 
     public List<Employee> getAllEmployeesFull(String searchPrenom, String searchNom, String searchMatricule,
-                                              int searchDepartementId, List<Integer> filterProjectEmployeeIds,
+                                              int searchDepartementId, List<Integer> filterProjectEmployeeIds, // Nouveaux params
                                               String filterPoste, String filterRole) {
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
             StringBuilder hql = new StringBuilder("SELECT DISTINCT e FROM Employee e LEFT JOIN FETCH e.roles r LEFT JOIN FETCH e.departement d WHERE 1=1 ");
@@ -47,7 +53,7 @@ public class EmployeeDAO {
             }
 
             if (filterProjectEmployeeIds != null) {
-                if (filterProjectEmployeeIds.isEmpty()) {
+                if (filterProjectEmployeeIds.isEmpty()) {// Si un projet est sélectionné mais qu'il n'a aucun employé, on ne doit rien retourner
                     return new java.util.ArrayList<>();
                 }
                 hql.append("AND e.id IN (:empIds) ");
@@ -99,6 +105,9 @@ public class EmployeeDAO {
         Transaction tx = null;
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
             tx = session.beginTransaction();
+
+            emp.setPassword(hashedPassword);
+
             session.merge(emp);
             tx.commit();
         } catch (Exception e) {
@@ -111,9 +120,11 @@ public class EmployeeDAO {
         Transaction tx = null;
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
             tx = session.beginTransaction();
+
             Employee emp = session.get(Employee.class, id);
 
             if (emp != null) {
+                // 2. Suppression de l'entité
                 session.remove(emp);
             }
 
@@ -143,10 +154,10 @@ public class EmployeeDAO {
             Employee emp = session.get(Employee.class, idEmploye);
             if (emp != null) {
                 if (idDepartement > 0) {
+                    // On lie l'objet proxy département
                     Departement d = session.getReference(Departement.class, idDepartement);
                     emp.setDepartement(d);
                 } else {
-                    emp.setDepartement(null);
                 }
                 session.merge(emp);
             }
@@ -157,7 +168,6 @@ public class EmployeeDAO {
         }
     }
 
-    public void clearEmployeeRoles(int employeeId) {
         Transaction tx = null;
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
             tx = session.beginTransaction();
@@ -278,7 +288,6 @@ public class EmployeeDAO {
             if (tx != null) tx.rollback();
         }
     }
-
     public void updateEmail(int id, String email) {
         Transaction tx = null;
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
@@ -289,20 +298,34 @@ public class EmployeeDAO {
         } catch (Exception e) { if(tx!=null) tx.rollback(); }
     }
 
-    public void updatePassword(int id, String pwd) {
+    public String updatePassword(int id, String plainPassword) {
         Transaction tx = null;
+        String hashedPassword = null;
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
             tx = session.beginTransaction();
             Employee emp = session.get(Employee.class, id);
-            if(emp != null) { emp.setPassword(pwd); session.merge(emp); }
+            if(emp != null) {
+                // Génération du hash
+                hashedPassword = BCrypt.hashpw(plainPassword, BCrypt.gensalt());
+                emp.setPassword(hashedPassword);
+                session.merge(emp);
+            }
             tx.commit();
-        } catch (Exception e) { if(tx!=null) tx.rollback(); }
+        } catch (Exception e) {
+            if(tx!=null) tx.rollback();
+            e.printStackTrace();
+            return null;
+        }
+        return hashedPassword;
     }
 
-    public boolean checkPassword(int id, String pwd) {
+    public boolean checkPassword(int id, String passwordCandidate) {
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
             Employee emp = session.get(Employee.class, id);
-            return emp != null && emp.getPassword().equals(pwd);
+            if (emp != null) {
+                return BCrypt.checkpw(passwordCandidate, emp.getPassword());
+            }
+            return false;
         }
     }
 }

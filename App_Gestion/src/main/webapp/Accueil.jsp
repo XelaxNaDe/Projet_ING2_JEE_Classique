@@ -35,9 +35,9 @@
         <a href="${pageContext.request.contextPath}/employes" class="nav-button admin-btn">Employés</a>
         <% if (isAdmin) { %>
         <a href="${pageContext.request.contextPath}/payroll" class="nav-button">Fiches de paie</a>
-        <% }
+        <% } %>
 
-            if (!isAdmin) { %>
+        <% if (!isAdmin) { %>
         <a href="${pageContext.request.contextPath}/payroll" class="nav-button">Mes Fiches de paie</a>
         <% } %>
 

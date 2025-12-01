@@ -10,7 +10,6 @@ import jakarta.servlet.http.HttpSession;
 import model.Employee;
 
 import java.io.IOException;
-import java.sql.SQLException;
 
 @WebServlet(name = "LoginServlet", urlPatterns = "/login")
 public class LoginServlet extends HttpServlet {
@@ -30,10 +29,9 @@ public class LoginServlet extends HttpServlet {
         Employee user = null;
         try {
             user = employeeDAO.findByEmailAndPassword(email, password);
-
         } catch (Exception e) {
             e.printStackTrace();
-            req.setAttribute("errorMessage", "Erreur de base de données. Veuillez contacter un admin.");
+            req.setAttribute("errorMessage", "Erreur technique : " + e.getMessage());
             req.getRequestDispatcher("Connexion.jsp").forward(req, resp);
             return;
         }
@@ -43,7 +41,7 @@ public class LoginServlet extends HttpServlet {
             session.setAttribute("currentUser", user);
             resp.sendRedirect(req.getContextPath() + "/accueil");
         } else {
-            req.setAttribute("errorMessage", "Email ou mot de passe incorrect");
+            req.setAttribute("errorMessage", "Email ou mot de passe incorrect.");
             req.getRequestDispatcher("Connexion.jsp").forward(req, resp);
         }
     }
